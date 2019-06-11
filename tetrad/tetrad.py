@@ -23,6 +23,7 @@ import copy
 import itertools
 
 # third party
+import h5py
 import toytree
 import numpy as np
 from scipy.special import comb
@@ -31,12 +32,6 @@ from .utils import TetradError, Params, Trees, Files
 from .jitted import resolve_ambigs, jget_spans
 from .parallel import Parallel
 from .distributor import Distributor
-
-# suppress the terrible h5 warning
-import warnings
-with warnings.catch_warnings(): 
-    warnings.filterwarnings("ignore", category=FutureWarning)
-    import h5py
 
 
 """
