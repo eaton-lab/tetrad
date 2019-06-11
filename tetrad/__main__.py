@@ -2,21 +2,18 @@
 
 """ the main CLI for calling tetrad """
 
-from __future__ import print_function, division  # Requires Python 2.7+
+from __future__ import print_function, division
 
 import os
 import sys
 import argparse
-# import pkg_resources
-
 import numpy as np
 import ipyparallel as ipp
 
-
 import tetrad
 from .tetrad import Tetrad
-from .tetrad.parallel import set_cid_and_launch_ipcluster_for_cli, get_client
-from .tetrad.utils import TetradError, detect_cpus
+from .utils import TetradError
+from .parallel import Parallel, detect_cpus
 
 __interactive__ = 0
 
@@ -24,31 +21,25 @@ __interactive__ = 0
 def parse_command_line():
     "Parse CLI arguments"
 
-    ## create the parser
+    # create the parser
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=HELP_MESSAGE)
 
-    ## get version from ipyrad 
-    # tetversion = str(pkg_resources.get_distribution('tetrad'))
-    tetversion = tetrad.__version__
+    # get version from ipyrad 
     parser.add_argument('-v', '--version', action='version', 
-        version="tetrad {}".format(tetversion.split()[1]))
+        version="tetrad {}".format(tetrad.__version__))
 
     parser.add_argument('-f', "--force", action='store_true',
         help="force overwrite of existing data")
 
-    parser.add_argument('-s', metavar="seq", dest="seq",
+    parser.add_argument('-s', metavar="snps_file", dest="snps",
         type=str, default=None,
-        help="path to input phylip file (only SNPs)")
+        help="path to input data file (snps.hdf5 from ipyrad)")
 
     parser.add_argument('-j', metavar='json', dest="json",
         type=str, default=None,
         help="load checkpointed/saved analysis from JSON file.")
-
-    parser.add_argument('-m', metavar="method", dest="method",
-        type=str, default="all",
-        help="method for sampling quartets (all, random, or equal)")
 
     parser.add_argument('-q', metavar="nquartets", dest="nquartets",
         type=int, default=0,
@@ -58,14 +49,6 @@ def parse_command_line():
         type=int, default=0,
         help="number of non-parametric bootstrap replicates")
 
-    parser.add_argument('-l', metavar="map_file", dest="map",
-        type=str, default=None,
-        help="map file of snp linkages (e.g., ipyrad .snps.map)")
-
-    parser.add_argument('-r', metavar="resolve", dest='resolve', 
-        type=int, default=1, 
-        help="randomly resolve heterozygous sites (default=1)")
-
     parser.add_argument('-n', metavar="name", dest="name",
         type=str, default="test",
         help="output name prefix (default: 'test')")
@@ -74,10 +57,6 @@ def parse_command_line():
         type=str, default="./analysis-tetrad",
         help="output directory (default: creates ./analysis-tetrad)")
 
-    parser.add_argument('-t', metavar="starting_tree", dest="tree",
-        type=str, default=None,
-        help="newick file starting tree for equal splits sampling")
-
     parser.add_argument("-c", metavar="CPUs/cores", dest="cores",
         type=int, default=0,
         help="setting -c improves parallel efficiency with --MPI")
@@ -85,9 +64,6 @@ def parse_command_line():
     parser.add_argument("-x", metavar="random_seed", dest="rseed",
         type=int, default=None,
         help="random seed for quartet sampling and/or bootstrapping")    
-
-    parser.add_argument('-d', "--debug", action='store_true',
-        help="print lots more info to debugger: ipyrad_log.txt.")
 
     parser.add_argument("--MPI", action='store_true',
         help="connect to parallel CPUs across multiple nodes")
@@ -99,27 +75,19 @@ def parse_command_line():
         type=str, nargs="?", const="default",
         help="connect to ipcluster profile (default: 'default')")
 
-    ## if no args then return help message
+    # if no args then return help message
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
 
-    ## parse args
+    # parse args
     args = parser.parse_args()
 
-    ## RAISE errors right away for some bad argument combinations:
-    if args.method not in ["random", "equal", "all"]:
-        raise TetradError(
-            "method argument (-m) must be one of 'all', 'random', or 'equal'"
-        )
-
-    ## required args
-    if not any(x in ["seq", "json"] for x in vars(args).keys()):
-        print("""
+    # required args
+    if not (("snps" in args) or ("json" in args)):
+        sys.exit("""
     Bad arguments: tetrad command must include at least one of (-s or -j) 
     """)
-        parser.print_help()
-        sys.exit(1)
 
     return args
 
@@ -128,16 +96,44 @@ def parse_command_line():
 class CLI:
     def __init__(self):
 
+        print(HEADER.format(tetrad.__version__))
         self.args = parse_command_line()
-        self.data = None
         self.get_data()
         self.set_params()
-        ipyclient = self.get_ipyclient()
-        self.data.run(force=self.args.force, ipyclient=ipyclient)
+
+        # if ipyclient is running (and matched profile) then use that one
+        if self.args.ipcluster:
+            ipyclient = ipp.Client(profile=self.args.ipcluster)
+            self.data.ipcluster["cores"] = len(ipyclient)
+
+        # if not then we need to register and launch an ipcluster instance
+        else:
+            # set CLI ipcluster terms
+            ipyclient = None
+            self.data.ipcluster["cores"] = (
+                self.args.cores if self.args.cores else detect_cpus())
+            self.data.ipcluster["engines"] = "Local"
+            if self.args.MPI:
+                self.data.ipcluster["engines"] = "MPI"
+                if not self.args.cores:
+                    raise TetradError("must provide -c argument with --MPI")
+
+            # get pool object
+            pool = Parallel(
+                tool=self.data, 
+                rkwargs={"force": self.args.force},
+                ipyclient=ipyclient,
+                show_cluster=True,
+                auto=True,
+                )
+            pool.wrap_run()
            
 
     def get_data(self):
-        # if arg JSON then load existing; if force clear results but keep params
+        """
+        """
+
+        # if arg JSON then load existing; if force clear results.
         if self.args.json:
             self.data = Tetrad(
                 name=self.args.name, workdir=self.args.workdir, load=True)
@@ -164,11 +160,7 @@ class CLI:
                 self.data = Tetrad(
                     name=self.args.name, 
                     workdir=self.args.workdir, 
-                    method=self.args.method, 
-                    data=self.args.seq, 
-                    resolve=self.args.resolve,
-                    mapfile=self.args.map, 
-                    guidetree=self.args.tree, 
+                    data=self.args.snps, 
                     nboots=self.args.boots, 
                     nquartets=self.args.nquartets, 
                     cli=True,
@@ -186,38 +178,11 @@ class CLI:
             self.data.params.nboots = int(self.args.boots)
 
         # message about whether we are continuing from existing
-        if self.data.checkpoint.boots:
-            print(LOADING_MESSAGE.format(
-                self.data.name, self.data.params.method, 
-                self.data.checkpoint.boots)
+        if self.data._checkpoint:
+            print(
+                LOADING_MESSAGE
+                .format(self.data.name, self.data._checkpoint)
             )
-
-
-    def get_ipyclient(self):
-
-        # if ipyclient is running (and matched profile) then use that one
-        if self.args.ipcluster:
-            ipyclient = ipp.Client(profile=self.args.ipcluster)
-            self.data._ipcluster["cores"] = len(ipyclient)
-
-        # if not then we need to register and launch an ipcluster instance
-        else:
-            # set CLI ipcluster terms
-            self.ipyclient = None
-            self.data._ipcluster["cores"] = (
-                self.args.cores if self.args.cores else detect_cpus())
-            self.data._ipcluster["engines"] = "Local"
-            if self.args.MPI:
-                self.data._ipcluster["engines"] = "MPI"
-                if not self.args.cores:
-                    raise TetradError("must provide -c argument with --MPI")
-            
-            # register to have a cluster-id with unique name
-            set_cid_and_launch_ipcluster_for_cli(self.data) 
-            ipyclient = get_client()
-
-        # found running client or started one and then found it.
-        return ipyclient       
 
 
 ## CONSTANTS AND WARNINGS
@@ -238,41 +203,35 @@ to continue analysis of '{}' from last checkpoint.
 
 
 LOADING_MESSAGE = """\
-Continuing checkpointed analysis: {}
-  sampling method: {}
-  bootstrap checkpoint: {}
+Continuing checkpointed analysis from bootstrap replicate: {}
 """
 
 HELP_MESSAGE = """\
   * Example command-line usage ---------------------------------------------- 
 
-  * Read in sequence/SNP data file, provide linkage, output name, ambig option. 
-     tetrad -s data.snps.phy -n test             ## input phylip and give name
-     tetrad -s data.snps.phy -l data.snps.map    ## sample one SNP per locus
-     tetrad -s data.snps.phy -n noambigs -r 0    ## do not use hetero sites
+  * Read in SNP database file and provide name
+     tetrad -s data.snps.hdf5 -n test
 
-  * Load saved/checkpointed analysis from '.tet.json' file, or force restart. 
-     tetrad -j test.tet.json -b 100         ## continue 'test' until 100 boots
-     tetrad -j test.tet.json -b 100 -f      ## force restart of 'test'
+  * Load saved/checkpointed analysis
+     tetrad -j test.tetrad.json -b 100      # continue 'test' until 100 boots
+     tetrad -j test.tetrad.json -b 100 -f   # force restart and run until 100
 
-  * Sampling modes: 'equal' uses guide tree to sample quartets more efficiently 
-     tetrad -s data.snps.phy -m all                       ## sample all quartets
-     tetrad -s data.snps.phy -m random -q 1e6 -x 123      ## sample 1M randomly
-     tetrad -s data.snps.phy -m equal -q 1e6 -t guide.tre ## sample 1M across tree
+  * Connect to N cores on a computer
+     tetrad -s data.snps.hdf5 -c 20
 
-  * Connect to N cores on a computer (default without -c arg is to use all avail.)
-     tetrad -s data.snps.phy -c 20
+  * Use MPI to connect to multiple nodes on cluster to find 40 cores
+     tetrad -s data.snps.hdf5 --MPI -c 40
 
-  * Start an MPI cluster to connect to nodes across multiple available hosts.
-     tetrad -s data.snps.phy --MPI     
+  * Connect to a manually started ipcluster instance 
+     tetrad -s data.snps.hdf5 --ipcluster        # connects to default profile
+     tetrad -s data.snps.hdf5 --ipcluster pname  # connects to profile='pname'
 
-  * Connect to a manually started ipcluster instance with default or named profile
-     tetrad -s data.snps.phy --ipcluster        ## connects to default profile
-     tetrad -s data.snps.phy --ipcluster pname  ## connects to profile='pname'
-
-  * Further documentation: http://ipyrad.readthedocs.io/analysis.html
+  * Further documentation: http://tetrad.readthedocs.io/analysis.html
 """
 
 
-if __name__ == "__main__": 
+def main():
     CLI()
+
+if __name__ == "__main__": 
+    main()

@@ -39,16 +39,11 @@ class Parallel(object):
         self.ipyclient = ipyclient
         self.show_cluster = show_cluster
         self.auto = auto
+        self.spacer = ""
 
         # require quiet attribute
         if not hasattr(self.tool, "quiet"):
-            self.tool.quiet = False
-
-        # get spacer for printing if present
-        try:
-            self.spacer = self.tool._spacer
-        except AttributeError:
-            self.spacer = ""
+            self.tool.quiet = False       
 
 
     def update_message(self, value):
@@ -323,6 +318,7 @@ class Parallel(object):
                     print(iptrace)
             else:
                 SystemExit(1)
+
 
 
     def cleanup(self):

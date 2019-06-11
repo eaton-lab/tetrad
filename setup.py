@@ -23,8 +23,9 @@ setup(
     url="https://github.com/eaton-lab/tetrad",
     author="Deren Eaton",
     author_email="de2356@columbia.edu",
-    description="Quartet inference usign phylogenetic invariants",
+    description="Quartet inference using phylogenetic invariants",
     long_description=open('README.rst').read(),
+    long_description_content_type='text/x-rst',    
     packages=find_packages(),
     install_requires=[
         "future",
@@ -35,18 +36,17 @@ setup(
         "pandas>=0.20",
         "h5py>=2.7",
         "mpi4py",
+        "mkl",
         "toytree>=0.1.21",
     ],
-    entry_points={
-        'console_scripts': [
-            'tetrad = tetrad.__main__:main',
-        ],
-    },
+    entry_points={'console_scripts': ['tetrad = tetrad.__main__:main']},
     data_files=[('bin', glob.glob("./bin/*"))],
     license='GPLv3',
     classifiers=[
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',                
     ],
 )

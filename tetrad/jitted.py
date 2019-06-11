@@ -3,43 +3,44 @@
 """
 Just in time compiled functions for tetrad
 """
-
+from builtins import range
 import numpy as np
-from numba import njit, prange
+from numba import njit
+from .utils import GETCONS
 
 
-# used by resolve_ambigs
-GETCONS = np.array([
-    [82, 71, 65],
-    [75, 71, 84],
-    [83, 71, 67],
-    [89, 84, 67],
-    [87, 84, 65],
-    [77, 67, 65]], dtype=np.uint8,
-)
+@njit(parallel=True)
+def subsample_loci_and_snps(snpsmap, seed, resample_loci):
+    "Subsample loci and SNPs (one per locus) using snpsmap"
+    
+    # initialize numba random seed 
+    np.random.seed(seed)
 
+    # get locus idxs
+    sidxs = np.unique(snpsmap[:, 0])
 
-njit(parallel=True)
-def get_spans(maparr, spans):
-    """ 
-    Get span distance for each locus in original seqarray. This
-    is used to create re-sampled arrays in each bootstrap to sample
-    unlinked SNPs from. Used on snpsphy or str or ...
-    """
-    start = 0
-    end = 0
-    for idx in prange(1, spans.shape[0] + 1):
-        lines = maparr[maparr[:, 0] == idx]
-        if lines.size:
-            end = lines[:, 3].max()
-            spans[idx - 1] = [start, end]
-        else: 
-            spans[idx - 1] = [end, end]
-        start = spans[idx - 1, 1]
+    # resample locus idxs
+    if resample_loci:
+        sidxs = np.random.choice(sidxs, sidxs.size)
 
-    # drop rows with no span (invariant loci)
-    spans = spans[spans[:, 0] != spans[:, 1]]
-    return spans
+    # an array to fill
+    subs = np.zeros(sidxs.size, dtype=np.int64)
+    idx = 0
+
+    # iterate over loci 
+    for sidx in sidxs:
+
+        # get all sites in this locus
+        sites = snpsmap[snpsmap[:, 0] == sidx, 1]
+
+        # randomly select one and save
+        site = np.random.choice(sites)
+        subs[idx] = site
+        idx += 1
+
+    # return as sorted array of int64
+    subs.sort()
+    return subs
 
 
 @njit()
@@ -47,30 +48,29 @@ def calculate(seqnon, mapcol, nmask, tests):
     """
     Groups together several other numba funcs.
     """
-    ## get the invariants matrix
+    # get the invariants matrix
     mats = chunk_to_matrices(seqnon, mapcol, nmask)
 
-    ## empty arrs to fill
+    # empty arrs to fill
     svds = np.zeros((3, 16), dtype=np.float64)
     scor = np.zeros(3, dtype=np.float64)
     rank = np.zeros(3, dtype=np.float64)
 
-    ## why svd and rank?
+    # svd and rank.
     for test in range(3):
         svds[test] = np.linalg.svd(mats[test].astype(np.float64))[1]
         rank[test] = np.linalg.matrix_rank(mats[test].astype(np.float64))
 
-    ## get minrank, or 11
+    # get minrank, or 11 (TODO: can apply seq model here)
     minrank = int(min(11, rank.min()))
     for test in range(3):
         scor[test] = np.sqrt(np.sum(svds[test, minrank:]**2))
 
-    ## sort to find the best qorder
+    # sort to find the best qorder
     best = np.where(scor == scor.min())[0]
     bidx = tests[best][0]
 
     return bidx, mats[0]
-
 
 
 @njit('u4[:,:,:](u1[:,:],u4[:],b1[:])')
@@ -79,7 +79,7 @@ def chunk_to_matrices(narr, mapcol, nmask):
     numba compiled code to get matrix fast.
     arr is a 4 x N seq matrix converted to np.int8
     I convert the numbers for ATGC into their respective index for the MAT
-    matrix, and leave all others as high numbers, i.e., -==45, N==78. 
+    matrix, and leave all others as high numbers, i.e., -==45, N==78.        
     """
 
     ## get seq alignment and create an empty array for filling
@@ -103,9 +103,63 @@ def chunk_to_matrices(narr, mapcol, nmask):
             mats[1, y:y + np.uint8(4), z:z + np.uint8(4)] = mats[0, x].reshape(4, 4)
             mats[2, y:y + np.uint8(4), z:z + np.uint8(4)] = mats[0, x].reshape(4, 4).T
             x += np.uint8(1)
-
     return mats
 
+
+@njit
+def old_jget_spans(maparr, spans):
+    """ 
+    Get span distance for each locus in original seqarray. This
+    is used to create re-sampled arrays in each bootstrap to sample
+    unlinked SNPs. 
+    """
+    ## start at 0, finds change at 1-index of map file
+    bidx = 1
+    spans = np.zeros((maparr[-1, 0], 2), np.uint64)
+    ## read through marr and record when locus id changes
+    for idx in range(1, maparr.shape[0]):
+        cur = maparr[idx, 0]
+        if cur != bidx:
+            # idy = idx + 1
+            spans[cur - 2, 1] = idx
+            spans[cur - 1, 0] = idx
+            bidx = cur
+    spans[-1, 1] = maparr[-1, -1]
+    return spans
+
+
+@njit()
+def jget_spans(maparr):
+    """ 
+    Returns array with span distances for each locus in original seqarray. 
+    [ 0, 33],
+    [33, 47],
+    [47, 51], ...
+    """
+    sidx = 0
+    locs = np.unique(maparr[:, 0])
+    nlocs = locs.size
+    spans = np.zeros((nlocs, 2), np.int64)
+
+    lidx = 0
+    # advance over all snp rows 
+    for idx in range(maparr.shape[0]):
+        
+        # get locus id at this row 0, 0, 0, 0
+        eidx = maparr[idx, 0]
+        
+        # if locus id is not sidx
+        if eidx != sidx:
+            if lidx:
+                spans[lidx] = spans[lidx - 1, 1], idx
+            else:
+                spans[lidx] = np.array((0, idx))
+            lidx += 1
+            sidx = locs[lidx]
+
+    # final end span
+    spans[-1] = np.array((spans[-2, 1], maparr[-1, -1] + 1))
+    return spans
 
 
 @njit()
@@ -190,3 +244,67 @@ def resolve_ambigs(tmpseq):
             else:
                 tmpseq[idx[col], idy[col]] = res2
     return tmpseq
+
+
+
+# deprecated: much slower than chunk_to_matrices.
+@njit()
+def calc2(seqs, maparr, mapmask, tests):
+
+    # get snpsmap masked for this quartet set
+    snpsmap = maparr[mapmask, :]
+
+    # empty for storing output 
+    mats = np.zeros((3, 16, 16), dtype=np.uint32)
+
+    # get all loci that still contain a snp
+    loci = np.unique(snpsmap[:, 0])
+
+    # iterate over loci sampling one SNP from each
+    idx = 0
+    for loc in loci:
+        sidxs = snpsmap[snpsmap[:, 0] == loc, 1]
+        sidx = np.random.choice(sidxs)
+        i = seqs[:, sidx]
+
+        # enter the site into the counts matrix
+        mats[0, (4 * i[0]) + i[1], (4 * i[2]) + i[3]] += 1      
+        idx += 1
+
+    # fill the alternates
+    x = np.uint8(0)
+    qidxs = np.array([0, 4, 8, 12], dtype=np.uint8)
+    for y in qidxs:
+        for z in qidxs:
+
+            # mat x
+            remat = mats[0, x].reshape(4, 4)
+            mats[1, y:y + np.uint8(4), z:z + np.uint8(4)] = remat
+
+            # mat y
+            remat = mats[0, x].reshape(4, 4).T
+            mats[2, y:y + np.uint8(4), z:z + np.uint8(4)] = remat
+
+            # increment counter
+            x += np.uint8(1)
+
+    # empty arrs to fill
+    svds = np.zeros((3, 16), dtype=np.float64)
+    scor = np.zeros(3, dtype=np.float64)
+    rank = np.zeros(3, dtype=np.float64)
+
+    # svd and rank.
+    for test in range(3):
+        svds[test] = np.linalg.svd(mats[test].astype(np.float64))[1]
+        rank[test] = np.linalg.matrix_rank(mats[test].astype(np.float64))
+
+    # get minrank, or 11 (TODO: can apply seq model here)
+    minrank = int(min(11, rank.min()))
+    for test in range(3):
+        scor[test] = np.sqrt(np.sum(svds[test, minrank:]**2))
+
+    # sort to find the best qorder
+    best = np.where(scor == scor.min())[0]
+    bidx = tests[best][0]
+
+    return bidx, mats[0]
