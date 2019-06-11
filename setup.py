@@ -36,7 +36,7 @@ setup(
         "pandas>=0.20",
         "h5py>=2.7",
         "mpi4py",
-        "mkl",
+        # "mkl",
         "toytree>=0.1.21",
     ],
     entry_points={'console_scripts': ['tetrad = tetrad.__main__:main']},
