@@ -270,11 +270,8 @@ class Parallel(object):
 
             # run the job
             if not dry_run:
-                self.tool._run(
-                    **self.rkwargs, 
-                    ipyclient=self.ipyclient, 
-                    )
-
+                self.tool._run(ipyclient=self.ipyclient, **self.rkwargs)
+                   
         # print the error and cleanup
         except KeyboardInterrupt:
             print("\n{}Keyboard Interrupt by user\n".format(self.spacer))

@@ -2,6 +2,8 @@
 
 "Helper classes for tetrad based on similar utils in ipyrad"
 
+from __future__ import print_function
+
 import os
 import sys
 import time
