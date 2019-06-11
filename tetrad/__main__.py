@@ -9,11 +9,12 @@ import sys
 import argparse
 import numpy as np
 import ipyparallel as ipp
+from pkg_resources import get_distribution
 
-import tetrad
 from .tetrad import Tetrad
 from .utils import TetradError
 from .parallel import Parallel, detect_cpus
+
 
 __interactive__ = 0
 
@@ -28,7 +29,7 @@ def parse_command_line():
 
     # get version from ipyrad 
     parser.add_argument('-v', '--version', action='version', 
-        version="tetrad {}".format(tetrad.__version__))
+        version=str(get_distribution("tetrad")))
 
     parser.add_argument('-f', "--force", action='store_true',
         help="force overwrite of existing data")
@@ -65,15 +66,15 @@ def parse_command_line():
         type=int, default=None,
         help="random seed for quartet sampling and/or bootstrapping")    
 
-    parser.add_argument("--MPI", action='store_true',
-        help="connect to parallel CPUs across multiple nodes")
-
     parser.add_argument("--invariants", action='store_true',
         help="save a (large) database of all invariants")
 
-    parser.add_argument("--ipcluster", metavar="ipcluster", dest="ipcluster",
+    parser.add_argument("--MPI", action='store_true',
+        help="connect to parallel CPUs across multiple nodes")
+
+    parser.add_argument("--ipcluster", metavar="profile", dest="ipcluster",
         type=str, nargs="?", const="default",
-        help="connect to ipcluster profile (default: 'default')")
+        help="connect to a running ipcluster instance")
 
     # if no args then return help message
     if len(sys.argv) == 1:
@@ -96,10 +97,10 @@ def parse_command_line():
 class CLI:
     def __init__(self):
 
-        print(HEADER.format(tetrad.__version__))
         self.args = parse_command_line()
+        print(HEADER.format(str(get_distribution("tetrad")).split()[-1]))
         self.get_data()
-        self.set_params()
+        self.set_params()     
 
         # if ipyclient is running (and matched profile) then use that one
         if self.args.ipcluster:
@@ -118,7 +119,7 @@ class CLI:
                 if not self.args.cores:
                     raise TetradError("must provide -c argument with --MPI")
 
-            # get pool object
+            # get pool object and start parallel job
             pool = Parallel(
                 tool=self.data, 
                 rkwargs={"force": self.args.force},
