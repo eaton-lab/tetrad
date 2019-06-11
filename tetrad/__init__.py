@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from tetrad.tetrad import Tetrad as tetrad
+from .tetrad import Tetrad as tetrad
 
 # dunders mifflin
 __version__ = "0.9.1"
