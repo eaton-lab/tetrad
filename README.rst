@@ -23,7 +23,7 @@ Tetrad offers a number of advantages over SVDquartets:
 
 Installation
 ------------
-. code:: bash
+.. code:: bash
 	conda install tetrad -c eaton-lab -c conda-forge
 
 Usage
