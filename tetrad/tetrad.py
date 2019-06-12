@@ -35,6 +35,14 @@ from .distributor import Distributor
 
 
 """
+TODO: 
+    - cleanup hdf5 and still able to restart from json by rebuilding arrs
+    - linkage samples scaff, dist, or None.
+    - 
+"""
+
+
+"""
 Parallelization works by creating one sampled SNP data set (bootsarr)
 and distributing jobs to engines where each receives a list of quartet sets
 to run, and each reads in data from the bootsarr HDF array.

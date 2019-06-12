@@ -16,7 +16,7 @@ from .utils import TetradError
 from .parallel import Parallel, detect_cpus
 
 
-__interactive__ = 0
+__interactive__ = 1
 
 
 def parse_command_line():

@@ -15,8 +15,9 @@ import socket
 import traceback
 import subprocess
 from random import getrandbits
-
 import ipyparallel as ipp
+
+import tetrad
 from .utils import TetradError
 
 
@@ -310,7 +311,7 @@ class Parallel(object):
             self.cleanup()
             
             # print traceback and exit if CLI, just print if API
-            if not self.tool._cli:
+            if tetrad.__interactive__:
                 if iptrace:
                     print(iptrace)
             else:
