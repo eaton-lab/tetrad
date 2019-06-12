@@ -1,15 +1,18 @@
 
 
-# tetrad
+tetrad
+------
 Phylogenetic species tree inference using phylogenetic invariants and quartet joining
 
-### Description
+Description
+-----------
 Tetrad employs the inference method originally developed in SVDquartets for 
 inferring quartet trees using phylogenetic invariants, and joining those 
 quartet trees into a super tree to provide a topology that is statistically 
 consistent under the multispecies coalescent model. 
 
-### Features
+Features
+--------
 Tetrad offers a number of advantages over SVDquartets:
 
 1. Easy installation (conda).
@@ -19,7 +22,8 @@ Tetrad offers a number of advantages over SVDquartets:
 5. Fast: inference can be massively parallelized easily (e.g., MPI)
 
 
-### usage
+Usage
+-----
 ```bash
 
 # run tetrad on a snps data file from ipyrad
