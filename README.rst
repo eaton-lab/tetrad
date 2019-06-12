@@ -17,7 +17,7 @@ Tetrad offers a number of advantages over SVDquartets:
 
 1. Easy installation (conda).
 2. Simple command line tool.
-3. Optimizes SNP information for each quartet set (missing data no problem).
+3. Optimizes SNP information for each quartet set (see #SNP-sampling).
 4. Bootstrap re-sampling samples both loci and SNPs (ideal for RAD data).
 5. Fast: inference can be massively parallelized easily (e.g., MPI)
 
@@ -36,4 +36,14 @@ Usage
 
 	# run on 80 cores distributed over 4 nodes on a cluster
 	tetrad -s data.snps.hfd5 -c 80 --MPI
+
+
+SNP sampling
+------------
+To reduce the effects of linked SNPs on the results tetrad should be 
+used with linkage information turned on (it is by default), so that
+only a single SNP is sampled from each locus. Tetrad samples a single
+SNP from each locus that is segregating within each quartet set of 
+of samples, and repeats this sampling on each iteration (e.g., bootstrap)
+to maximize the amount of information used for each quartet resolution.
 
