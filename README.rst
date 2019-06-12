@@ -24,13 +24,11 @@ Tetrad offers a number of advantages over SVDquartets:
 
 Usage
 -----
-```bash
+.. code:: bash
 
-# run tetrad on a snps data file from ipyrad
-tetrad -s data.snps.hfd5 
+	# run tetrad on a snps data file from ipyrad
+	tetrad -s data.snps.hfd5 
 
-# run on 80 cores distributed over 4 nodes on a cluster
-tetrad -s data.snps.hfd5 -c 80 --MPI
-
-```
+	# run on 80 cores distributed over 4 nodes on a cluster
+	tetrad -s data.snps.hfd5 -c 80 --MPI
 
