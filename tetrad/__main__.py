@@ -58,7 +58,7 @@ def parse_command_line():
         type=str, default="./analysis-tetrad",
         help="output directory (default: creates ./analysis-tetrad)")
 
-    parser.add_argument("-c", metavar="CPUs/cores", dest="cores",
+    parser.add_argument("-c", metavar="cores", dest="cores",
         type=int, default=0,
         help="setting -c improves parallel efficiency with --MPI")
 
