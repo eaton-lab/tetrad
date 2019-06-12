@@ -43,11 +43,11 @@ def parse_command_line():
         help="load checkpointed/saved analysis from JSON file.")
 
     parser.add_argument('-q', metavar="nquartets", dest="nquartets",
-        type=int, default=0,
+        type=float, default=0,
         help="number of quartets to sample (if not -m all)")
 
     parser.add_argument('-b', metavar="boots", dest="boots",
-        type=int, default=0,
+        type=float, default=0,
         help="number of non-parametric bootstrap replicates")
 
     parser.add_argument('-n', metavar="name", dest="name",
@@ -162,8 +162,8 @@ class CLI:
                     name=self.args.name, 
                     workdir=self.args.workdir, 
                     data=self.args.snps, 
-                    nboots=self.args.boots, 
-                    nquartets=self.args.nquartets, 
+                    nboots=int(self.args.boots), 
+                    nquartets=int(self.args.nquartets),
                     cli=True,
                     save_invariants=self.args.invariants,
                     )
