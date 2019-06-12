@@ -17,7 +17,7 @@ Tetrad offers a number of advantages over SVDquartets:
 
 1. Easy installation (conda).
 2. Simple command line tool.
-3. Optimizes SNP information for each quartet set (see [SNP-sampling](#snp-sampling)).
+3. Optimizes SNP information for each quartet set (see `SNP sampling <#snp-sampling>`_).
 4. Bootstrap re-sampling samples both loci and SNPs (ideal for RAD data).
 5. Fast: inference can be massively parallelized easily (e.g., MPI)
 
