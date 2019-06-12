@@ -21,6 +21,10 @@ Tetrad offers a number of advantages over SVDquartets:
 4. Bootstrap re-sampling samples both loci and SNPs (ideal for RAD data).
 5. Fast: inference can be massively parallelized easily (e.g., MPI)
 
+Installation
+------------
+. code:: bash
+	conda install tetrad -c eaton-lab -c conda-forge
 
 Usage
 -----
