@@ -535,8 +535,7 @@ class Tetrad(object):
         self._store_N_samples(force, ipyclient)
 
         # run bootstrap replicates (min 1 b/c the original is 'boot' 0)
-        end = max(1, self.params.nboots)
-        for bidx in range(self._checkpoint, end):
+        for bidx in range(self._checkpoint, self.params.nboots + 1):
 
             # distribute parallel jobs; starts from checkpoint; 
             Distributor(self, ipyclient, start=None, quiet=False).run()
