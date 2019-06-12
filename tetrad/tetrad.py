@@ -543,13 +543,17 @@ class Tetrad(object):
             self._print("")
 
         # map bootstrap support onto the full inference tree
-        if self._checkpoint:
+        if self._checkpoint > 1:
             mtre = toytree.mtree(self.trees.boots)
-            self.trees.cons = mtre.get_consensus_tree()
+            ctre = mtre.get_consensus_tree()
+            ctre.write(self.trees.cons)
 
         # cleanup
         ipyclient.purge_everything()
 
+        # TODO: remote the .hdf5s ...
+        # os.remove(self.files.idb)
+        # os.remove(self.files.odb)
 
 
 ##################################################
