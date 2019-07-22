@@ -132,11 +132,12 @@ def old_jget_spans(maparr, spans):
 def jget_spans(maparr):
     """ 
     Returns array with span distances for each locus in original seqarray. 
+    This is much faster than pandas or numpy queries.
     [ 0, 33],
     [33, 47],
     [47, 51], ...
     """
-    sidx = 0
+    sidx = maparr[0, 0]
     locs = np.unique(maparr[:, 0])
     nlocs = locs.size
     spans = np.zeros((nlocs, 2), np.int64)
@@ -150,10 +151,16 @@ def jget_spans(maparr):
         
         # if locus id is not sidx
         if eidx != sidx:
-            if lidx:
-                spans[lidx] = spans[lidx - 1, 1], idx
-            else:
+
+            # the first value entered
+            if not lidx:
                 spans[lidx] = np.array((0, idx))
+
+            # all other values
+            else:
+                spans[lidx] = spans[lidx - 1, 1], idx
+
+                
             lidx += 1
             sidx = locs[lidx]
 
