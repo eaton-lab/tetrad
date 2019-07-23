@@ -225,7 +225,6 @@ def jfill_boot(seqarr, newboot, newmap, spans, loci):
     return newboot, newmap
 
 
-
 @njit()
 def resolve_ambigs(tmpseq):
     """ 
@@ -251,7 +250,6 @@ def resolve_ambigs(tmpseq):
             else:
                 tmpseq[idx[col], idy[col]] = res2
     return tmpseq
-
 
 
 # deprecated: much slower than chunk_to_matrices.
