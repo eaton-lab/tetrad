@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """ 
-Summarize results
+Summarize results by computing consensus, boot, and quartet tree statistics
 """
 
 import time
@@ -23,6 +23,7 @@ class TreeStats:
 
     def run(self):
         self.build_bootstrap_consensus()
+        self.get_quartet_stats()
         #self.build_nhx_stats()
 
 
