@@ -44,7 +44,7 @@ class Parallel(object):
 
         # require quiet attribute
         if not hasattr(self.tool, "quiet"):
-            self.tool.quiet = False       
+            self.tool.quiet = False
 
 
     def update_message(self, value):
