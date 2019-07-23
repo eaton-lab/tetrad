@@ -127,11 +127,11 @@ class Tetrad(object):
         **kwargs):
 
         # check additional (hidden) arguments from kwargs.
-        self.quiet = False
         self.kwargs = {"initarr": True, "cli": False}
         self.kwargs.update(kwargs)
 
         # are we in the CLI?
+        self.quiet = (False if not self.kwargs.get("quiet") else True)
         self._cli = (False if not self.kwargs.get("cli") else True)
         self._spacer = ("  " if self._cli else "")
 
@@ -154,10 +154,10 @@ class Tetrad(object):
         self.params.save_invariants = save_invariants
 
         # tree paths
-        self.trees.tree = os.path.join(self.dirs, self.name + ".tre")
-        self.trees.cons = os.path.join(self.dirs, self.name + ".cons.tre")
-        self.trees.boots = os.path.join(self.dirs, self.name + ".boots.tre")        
-        self.trees.nhx = os.path.join(self.dirs, self.name + ".nhx.tre")
+        self.trees.tree = os.path.join(self.dirs, self.name + ".tree")
+        self.trees.cons = os.path.join(self.dirs, self.name + ".tree.cons")
+        self.trees.boots = os.path.join(self.dirs, self.name + ".tree.boots")        
+        self.trees.nhx = os.path.join(self.dirs, self.name + ".tree.nhx")
 
         # io file paths
         self.files.data = data
@@ -229,18 +229,39 @@ class Tetrad(object):
         quartets that must be sampled will be calculated, or error raised.
         """
         total = int(comb(len(self.samples), 4))
-        if not self.params.nquartets:
-            self.params.nquartets = int(len(self.samples) ** 2.8)
-            self._print(
-                "n quartet sets (N**2.8): {} / {}"
-                .format(self.params.nquartets, total))
+        rough = int(len(self.samples) ** 2.8)
 
-        if self.params.nquartets > total:
-            self.params.nquartets = total
-            self._print(
-                "n quartet sets: {} / {}"
-                .format(self.params.nquartets, total)
-            )
+        if not self.params.nquartets:
+            if rough >= total:
+                self.params.nquartets = total
+                self._print(
+                    "quartet sampler (full): {} / {}"
+                    .format(self.params.nquartets, total)
+                )
+            else:
+                self.params.nquartets = rough
+                self._print(
+                    "quartet sampler (random, nsamples**2.8): {} / {}"
+                    .format(self.params.nquartets, total)
+                )
+
+        else:
+            if self.params.nquartets > total:
+                self.params.nquartets = total
+                self._print(
+                    "quartet sampler (full): {} / {}"
+                    .format(self.params.nquartets, total)
+                )
+            else:                
+                self._print(
+                    "quartet sampler (random): {} / {}"
+                    .format(self.params.nquartets, total)
+                )
+        # else:
+            # self._print(
+                # "quartet sampling (random, N**2.8): {} / {}"
+                # .format(self.params.nquartets, total))
+
 
 
     def _load_file_paths(self):
@@ -273,7 +294,7 @@ class Tetrad(object):
         # data base file to write the transformed array to
         idb = h5py.File(self.files.idb, 'w')
 
-        # store maps info (enforced to 0-indexed?)
+        # store maps info (enforced to 0-indexed! -- assumes it is not already)
         idb.create_dataset("bootsmap", (nsnps, 2), dtype=np.uint32)
         snpsmap = io5["snpsmap"][:]
         snpsmap[:, 0] = snpsmap[:, 0] - 1
@@ -377,32 +398,31 @@ class Tetrad(object):
         # store_equal(self)
 
 
-    # TODO:
     def _refresh(self):
         """ 
         Remove all existing results files and reinit the h5 arrays 
         so that the tetrad object is just like fresh from a CLI start.
         """
         # clear any existing results files
-        oldfiles = [self.files.qdump] + \
-            list(self.database.__dict__.values()) + \
-            list(self.trees.__dict__.values())
+        oldfiles = [
+            self.files.qdump, 
+            self.files.idb,
+            self.files.odb,
+        ]
+        oldfiles += list(self.trees.values())
         for oldfile in oldfiles:
             if oldfile:
                 if os.path.exists(oldfile):
                     os.remove(oldfile)
 
         # store old ipcluster info
-        oldcluster = copy.deepcopy(self._ipcluster)
+        oldcluster = copy.deepcopy(self.ipcluster)
 
         # reinit the tetrad object data.
         self.__init__(
             name=self.name, 
             data=self.files.data, 
-            mapfile=self.files.mapfile,
             workdir=self.dirs,
-            # method=self.params.method,
-            # guidetree=self.files.guidetree,
             resolve_ambigs=self.params.resolve_ambigs,
             save_invariants=self.params.save_invariants,
             nboots=self.params.nboots, 
@@ -420,7 +440,7 @@ class Tetrad(object):
         if not self.quiet:
             print(message)
 
-
+    # TODO: testing
     def _save(self):
         """
         Save a JSON serialized tetrad instance to continue from a checkpoint.
@@ -456,7 +476,7 @@ class Tetrad(object):
                 continue
 
 
-    # TODO:
+    # TODO: testing
     def _load(self, name, workdir="analysis-tetrad"):
         """
         Load JSON serialized tetrad instance to continue from a checkpoint.
@@ -517,12 +537,13 @@ class Tetrad(object):
         auto (bool):
             Automatically start and cleanup parallel client.
         """
-        # update quiet param
-        self.quiet = quiet
 
         # force will refresh (clear) database to be re-filled
         if force:
             self._refresh()
+
+        # update quiet param
+        self.quiet = quiet
 
         # distribute parallel job
         pool = Parallel(
@@ -559,7 +580,7 @@ class Tetrad(object):
         # cleanup
         ipyclient.purge_everything()
 
-        # TODO: remote the .hdf5s ...
+        # TODO: remove the .hdf5s ... that would limit continuing...
         # os.remove(self.files.idb)
         # os.remove(self.files.odb)
 
@@ -604,7 +625,7 @@ def store_random(self):
     in a random quartet set. 
     """
 
-    with h5py.File(self.database.input, 'a') as io5:
+    with h5py.File(self.files.idb, 'a') as io5:
         fillsets = io5["quartets"]
 
         ## set generators
@@ -652,7 +673,7 @@ def store_equal(self):
     like those near the tips. 
     """
 
-    with h5py.File(self.database.input, 'a') as io5:
+    with h5py.File(self.files.idb, 'a') as io5:
         fillsets = io5["quartets"]
 
         # require guidetree
