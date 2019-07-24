@@ -1,0 +1,49 @@
+{% set name = "tetrad" %}
+{% set version = "0.9.4" %}
+# {% set sha256 = "311250f253539e2e1586f4e30728ad63e8a66e1119988cc5967965e911671a7b" %}
+
+package:
+  name: {{name}}
+  version: {{version}}
+
+source:
+  #url: https://github.com/eaton-lab/{{name}}/archive/{{version}}.tar.gz
+  #sha256: {{sha256}}
+  git_url: https://github.com/eaton-lab/tetrad.git
+  git_rev: {{version}}
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "
+  entry_points:
+    - tetrad = tetrad.__main__:main
+
+requirements:
+  host:
+    - pip
+    - python
+    # - mkl
+  run:
+    - python
+    # - mkl
+    - pandas
+    - scipy
+    - numpy
+    - numba >=0.39
+    - future
+    - h5py
+    - ipyparallel >=6.0.2
+    - mpi4py >=3.0
+    - toytree >=0.2
+
+test:
+  imports:
+    - tetrad
+  commands:
+    - tetrad -h
+
+about:
+  home: http://github.com/eaton-lab/tetrad
+  license: GPL3
+  license_file: LICENSE
+  summary: Quartet tree inference using phylogenetic invariants
