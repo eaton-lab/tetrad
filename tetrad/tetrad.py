@@ -440,86 +440,6 @@ class Tetrad(object):
         if not self.quiet:
             print(message)
 
-    # TODO: testing
-    def _save(self):
-        """
-        Save a JSON serialized tetrad instance to continue from a checkpoint.
-        """
-        # save each attribute as dict
-        fulldict = copy.deepcopy(self.__dict__)
-
-        # decompose objects to dicts
-        for i, j in fulldict.items():
-            if isinstance(j, (Params, Trees, Files)):
-                fulldict[i] = j.__dict__
-
-        # dump the dumps
-        fulldumps = json.dumps(
-            fulldict,
-            sort_keys=False, 
-            indent=4, 
-            separators=(",", ":"),
-            )
-
-        # save to file, make dir if it wasn't made earlier
-        assemblypath = os.path.join(self.dirs, self.name + ".tetrad.json")
-    
-        # protect save from interruption
-        done = 0
-        while not done:
-            try:
-                with open(assemblypath, 'w') as jout:
-                    jout.write(fulldumps)
-                done = 1
-            except (KeyboardInterrupt, SystemExit): 
-                print('.')
-                continue
-
-
-    # TODO: testing
-    def _load(self, name, workdir="analysis-tetrad"):
-        """
-        Load JSON serialized tetrad instance to continue from a checkpoint.
-        Loads name, files, dirs, and database files.
-        """
-        # load the JSON string and try with name + .json
-        path = os.path.join(workdir, name)
-        if not path.endswith(".tet.json"):
-            path += ".tet.json"
-
-        # expand user
-        path = path.replace("~", os.path.expanduser("~"))
-
-        # load the json file as a dictionary
-        try:
-            with open(path, 'r') as infile:
-                jdat = json.loads(infile.read(), object_hook=_byteify)
-                fullj = _byteify(jdat, ignore_dicts=True)
-        except IOError:
-            raise TetradError(
-                "Cannot find checkpoint (.tet.json) file at: {}"
-                .format(path))
-
-        # set old attributes into new tetrad object
-        self.name = fullj["name"]
-        self.files.data = fullj["files"]["data"]
-        # self.files.mapfile = fullj["files"]["mapfile"]        
-        self.dirs = fullj["dirs"]
-        self._init_seqarray()
-        self._parse_names()
-
-        # fill in the same attributes
-        for key in fullj:
-            
-            # fill Params a little different
-            if key in ["files", "params", "database", "trees", "stats", "checkpoint"]:
-                filler = fullj[key]
-                for ikey in filler:
-                    setattr(self.__dict__[key], ikey, fullj[key][ikey])
-                    # self.__dict__[key].__setattr__(ikey, fullj[key][ikey])
-            else:
-                self.__setattr__(key, fullj[key])
-
 
     def run(self, force=False, quiet=False, ipyclient=None, auto=False):
         """
@@ -537,7 +457,6 @@ class Tetrad(object):
         auto (bool):
             Automatically start and cleanup parallel client.
         """
-
         # force will refresh (clear) database to be re-filled
         if force:
             self._refresh()
@@ -846,19 +765,102 @@ NO_SNP_FILE = """\
 ## Save/Load from JSON operations checkpoint.
 ###############################################
 
-def _byteify(data, ignore_dicts=False):
-    """
-    converts unicode to utf-8 when reading in json files
-    """
-    if isinstance(data, str):
-        return data.encode("utf-8")
 
-    if isinstance(data, list):
-        return [_byteify(item, ignore_dicts=True) for item in data]
 
-    if isinstance(data, dict) and not ignore_dicts:
-        return {
-            _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True)
-            for key, value in data.items()
-        }
-    return data
+# def _byteify(data, ignore_dicts=False):
+#     """
+#     converts unicode to utf-8 when reading in json files
+#     """
+#     if isinstance(data, str):
+#         return data.encode("utf-8")
+
+#     if isinstance(data, list):
+#         return [_byteify(item, ignore_dicts=True) for item in data]
+
+#     if isinstance(data, dict) and not ignore_dicts:
+#         return {
+#             _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True)
+#             for key, value in data.items()
+#         }
+#     return data
+
+
+# # TODO: testing
+# def _save(self):
+#     """
+#     Save a JSON serialized tetrad instance to continue from a checkpoint.
+#     """
+#     # save each attribute as dict
+#     fulldict = copy.deepcopy(self.__dict__)
+
+#     # decompose objects to dicts
+#     for i, j in fulldict.items():
+#         if isinstance(j, (Params, Trees, Files)):
+#             fulldict[i] = j.__dict__
+
+#     # dump the dumps
+#     fulldumps = json.dumps(
+#         fulldict,
+#         sort_keys=False, 
+#         indent=4, 
+#         separators=(",", ":"),
+#         )
+
+#     # save to file, make dir if it wasn't made earlier
+#     assemblypath = os.path.join(self.dirs, self.name + ".tetrad.json")
+
+#     # protect save from interruption
+#     done = 0
+#     while not done:
+#         try:
+#             with open(assemblypath, 'w') as jout:
+#                 jout.write(fulldumps)
+#             done = 1
+#         except (KeyboardInterrupt, SystemExit): 
+#             print('.')
+#             continue
+
+
+# # TODO: testing
+# def _load(self, name, workdir="analysis-tetrad"):
+#     """
+#     Load JSON serialized tetrad instance to continue from a checkpoint.
+#     Loads name, files, dirs, and database files.
+#     """
+#     # load the JSON string and try with name + .json
+#     path = os.path.join(workdir, name)
+#     if not path.endswith(".tet.json"):
+#         path += ".tet.json"
+
+#     # expand user
+#     path = path.replace("~", os.path.expanduser("~"))
+
+#     # load the json file as a dictionary
+#     try:
+#         with open(path, 'r') as infile:
+#             jdat = json.loads(infile.read(), object_hook=_byteify)
+#             fullj = _byteify(jdat, ignore_dicts=True)
+#     except IOError:
+#         raise TetradError(
+#             "Cannot find checkpoint (.tet.json) file at: {}"
+#             .format(path))
+
+#     # set old attributes into new tetrad object
+#     self.name = fullj["name"]
+#     self.files.data = fullj["files"]["data"]
+#     # self.files.mapfile = fullj["files"]["mapfile"]        
+#     self.dirs = fullj["dirs"]
+#     self._init_seqarray()
+#     self._parse_names()
+
+#     # fill in the same attributes
+#     for key in fullj:
+        
+#         # fill Params a little different
+#         if key in ["files", "params", "database", "trees", "stats", "checkpoint"]:
+#             filler = fullj[key]
+#             for ikey in filler:
+#                 setattr(self.__dict__[key], ikey, fullj[key][ikey])
+#                 # self.__dict__[key].__setattr__(ikey, fullj[key][ikey])
+#         else:
+#             self.__setattr__(key, fullj[key])
