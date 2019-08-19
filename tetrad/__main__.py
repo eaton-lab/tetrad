@@ -34,17 +34,17 @@ def parse_command_line():
     parser.add_argument('-f', "--force", action='store_true',
         help="force overwrite of existing data")
 
-    parser.add_argument('-s', metavar="snps_file", dest="snps",
+    parser.add_argument('-i', metavar="input file", dest="snps",
         type=str, default=None,
-        help="path to input data file (snps.hdf5 from ipyrad)")
+        help="path to input data file (.vcf or .hdf5)")
 
-    parser.add_argument('-j', metavar='json', dest="json",
-        type=str, default=None,
-        help="load checkpointed/saved analysis from JSON file.")
+    # parser.add_argument('-j', metavar='json', dest="json",
+    # type=str, default=None,
+    # help="load checkpointed/saved analysis from JSON file.")
 
     parser.add_argument('-q', metavar="nquartets", dest="nquartets",
         type=float, default=0,
-        help="number of quartets to sample (if not -m all)")
+        help="number of quartets to sample (default=random N**2.8)")
 
     parser.add_argument('-b', metavar="boots", dest="boots",
         type=float, default=0,
@@ -197,9 +197,8 @@ Quartet inference from phylogenetic invariants
 
 QUARTET_EXISTS = """
 Error: tetrad analysis '{}' already exists in {} 
-Use the force argument (-f) to overwrite old analysis files, or,
-Use the JSON argument (-j {}/{}.tet.json) 
-to continue analysis of '{}' from last checkpoint.
+Use the force argument (-f) to overwrite old analysis files, 
+or -b X to append additional bootstrap reps up to X.
 """
 
 
@@ -210,22 +209,27 @@ Continuing checkpointed analysis from bootstrap replicate: {}
 HELP_MESSAGE = """\
   * Example command-line usage ---------------------------------------------- 
 
-  * Read in SNP database file and provide name
-     tetrad -s data.snps.hdf5 -n test
+  * Convert VCF to HDF5 and encode linkage block size.
+     tetrad -i data.vcf -o outdir -n data5K -l 5000
 
-  * Load saved/checkpointed analysis
-     tetrad -j test.tetrad.json -b 100      # continue 'test' until 100 boots
-     tetrad -j test.tetrad.json -b 100 -f   # force restart and run until 100
+  * Convert HDF5 to HDF5 with re-encoded linkage block size.
+     tetrad -i data.snps.hdf5 -o outdir -n data5K -l 5000
 
-  * Connect to N cores on a computer
-     tetrad -s data.snps.hdf5 -c 20
+  * Run tree inference from HDF5 file and save result to "outdir/test.tree"
+     tetrad -i data.snps.hdf5 -o outdir -n test
 
-  * Use MPI to connect to multiple nodes on cluster to find 40 cores
-     tetrad -s data.snps.hdf5 --MPI -c 40
+  * Run tree inference from checkpointed analysis: continue until 50 bootstraps
+     tetrad -i outdir/test.checkpoint.hdf5 -b 50
 
-  * Connect to a manually started ipcluster instance 
-     tetrad -s data.snps.hdf5 --ipcluster        # connects to default profile
-     tetrad -s data.snps.hdf5 --ipcluster pname  # connects to profile='pname'
+  * Run parallel tree inference across 20 cores on a single node/computer.
+     tetrad -i data.snps.hdf5 -c 20
+
+  * Run parallel tree inference across multiple nodes on a cluster
+     tetrad -i data.snps.hdf5 -c 40 --MPI
+
+  * Run parallel tree inference on a manually started ipcluster (see docs).
+     tetrad -i data.snps.hdf5 --ipcluster        # connects to default profile
+     tetrad -i data.snps.hdf5 --ipcluster pname  # connects to profile='pname'
 
   * Further documentation: http://tetrad.readthedocs.io/analysis.html
 """
