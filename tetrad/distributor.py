@@ -21,7 +21,7 @@ except ImportError:
     pass
 
 
-# GLOBAL PATH to the QMC binary
+# PATH to the QMC binary if local installation (e.g., pip)
 TETPATH = (
     os.path.dirname(
         os.path.abspath(
@@ -29,6 +29,11 @@ TETPATH = (
 BINPATH = os.path.join(TETPATH, "bin")
 PLATFORM = ("Linux" if "linux" in sys.platform else "Mac")
 QMC = os.path.join(os.path.abspath(BINPATH), "find-cut-{}-64".format(PLATFORM))
+
+# if local path not found then use just the binary which conda puts in PATH
+if not os.path.exists(QMC):
+    QMC = os.path.split(QMC)[-1]
+
 
 
 class Distributor:
