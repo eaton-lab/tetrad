@@ -17,34 +17,6 @@ from .jitted import calculate
 from .threading import single_threaded
 
 
-# def set_thread_limit(cores):
-#     """
-#     set mkl thread limit and return old value so we can reset
-#     when finished. 
-#     """
-#     try:
-#         if "linux" in sys.platform:
-#             mkl_rt = ctypes.CDLL('libmkl_rt.so')
-#         else:
-#             mkl_rt = ctypes.CDLL('libmkl_rt.dylib')
-    
-#         # get old limit, set new limit, and return old
-#         oldlimit = mkl_rt.mkl_get_max_threads()
-#         mkl_rt.mkl_set_num_threads(ctypes.byref(ctypes.c_int(cores)))
-#         return oldlimit
-
-#     except OSError:
-#         if "linux" in sys.platform:
-#             openblas_rt = ctypes.CDLL('openblas_rt.so')
-#         else:
-#             openblas_rt = ctypes.CDLL('openblas_rt.dylib')
-
-#         # get old limit, set new limit, and return old
-#         oldlimit = openblas_rt.openblas_get_max_threads()
-#         openblas_rt.openblas_set_num_threads(ctypes.byref(ctypes.c_int(cores)))
-#         return oldlimit
-
-
 # currently deprecated !!!!!!!!!!!!!
 def worker(tet, chunk):
 
@@ -132,7 +104,7 @@ def nworker(tet, chunk):
             rquartets[idx] = sidx[bidx]
             rinvariants[idx] = invar
 
-    # old thread limit is reset on closed indent
+        # old thread limit restored on closed context
 
     # return results...
     return rquartets, rinvariants
