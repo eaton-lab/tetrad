@@ -34,6 +34,12 @@ QMC = os.path.join(os.path.abspath(BINPATH), "find-cut-{}-64".format(PLATFORM))
 if not os.path.exists(QMC):
     QMC = os.path.split(QMC)[-1]
 
+# check for binary
+proc = sps.Popen(["which", QMC], stderr=sps.STDOUT, stdout=sps.PIPE)
+res = proc.communicate()[0]
+if not res:
+    raise TetradError("No QMC binary found: {}".format(QMC))
+
 
 
 class Distributor:
