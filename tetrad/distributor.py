@@ -283,7 +283,8 @@ class Distributor:
                 outtree.write(newick)
 
         # save the new checkpoint and file paths
-        self.tet._save()
+        # self.tet._save()
+        # TODO: update this to use the HDF5 to store updates, not JSON.
 
 
     # def init_new_invariants_array(self):
