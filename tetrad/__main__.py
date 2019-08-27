@@ -76,6 +76,9 @@ def parse_command_line():
         type=str, nargs="?", const="default",
         help="connect to a running ipcluster instance")
 
+    parser.add_argument("--boots-only", action="store_true", 
+        help="only run bootstrap replicate inference")
+
     # if no args then return help message
     if len(sys.argv) == 1:
         parser.print_help()
@@ -122,7 +125,7 @@ class CLI:
             # get pool object and start parallel job
             pool = Parallel(
                 tool=self.data, 
-                rkwargs={"force": self.args.force},
+                rkwargs={"force": self.args.force, "boots_only": self.args.boots_only},
                 ipyclient=ipyclient,
                 show_cluster=True,
                 auto=True,
@@ -135,14 +138,15 @@ class CLI:
         """
 
         # if arg JSON then load existing; if force clear results.
-        if self.args.json:
-            self.data = Tetrad(
-                name=self.args.name, workdir=self.args.workdir, load=True)
-            if self.args.force:
-                self.data._refresh()
+        # if self.args.json:
+            # self.data = Tetrad(
+                # name=self.args.name, workdir=self.args.workdir, load=True)
+            # if self.args.force:
+                # self.data._refresh()
 
         # else create a new Tetrad class and JSON
-        else:
+        # else:
+        if 1:
             # create new JSON path
             newjson = os.path.join(
                 self.args.workdir, self.args.name + '.tet.json')
@@ -166,6 +170,7 @@ class CLI:
                     nquartets=int(self.args.nquartets),
                     cli=True,
                     save_invariants=self.args.invariants,
+                    boots_only=self.args.boots_only,
                     )
 
 
