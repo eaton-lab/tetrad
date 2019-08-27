@@ -94,7 +94,7 @@ class Parallel(object):
             )
 
             # after waiting try again to start it
-            time.sleep(3)
+            time.sleep(5)
             try:
                 subprocess.check_call(
                     standard, 
