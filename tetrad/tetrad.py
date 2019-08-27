@@ -127,12 +127,13 @@ class Tetrad(object):
         **kwargs):
 
         # check additional (hidden) arguments from kwargs.
-        self.kwargs = {"initarr": True, "cli": False}
+        self.kwargs = {"initarr": True, "cli": False, "boots_only": False}
         self.kwargs.update(kwargs)
 
         # are we in the CLI?
         self.quiet = (False if not self.kwargs.get("quiet") else True)
         self._cli = (False if not self.kwargs.get("cli") else True)
+        self._boots_only = (False if not self.kwargs.get("boots_only") else True)
         self._spacer = ("  " if self._cli else "")
 
         # name, sample, and workdir
@@ -429,7 +430,8 @@ class Tetrad(object):
             nquartets=self.params.nquartets, 
             initarr=True, 
             quiet=True,
-            cli=self.kwargs.get("cli")
+            cli=self.kwargs.get("cli"),
+            boots_only=self.kwargs.get("boots_only"),
             )
 
         # retain the same ipcluster info
@@ -467,7 +469,7 @@ class Tetrad(object):
         # distribute parallel job
         pool = Parallel(
             tool=self,
-            rkwargs={"force": force},
+            rkwargs={"force": force, "boots_only": self._boots_only},
             ipyclient=ipyclient,
             show_cluster=False,
             auto=auto,
@@ -475,12 +477,17 @@ class Tetrad(object):
         pool.wrap_run()
 
 
-    def _run(self, force, ipyclient):
+    def _run(self, force, ipyclient, boots_only):
         """
         Run inside wrapped distributed parallel client.
         """
         # fill the quartet sets array
         self._store_N_samples(force, ipyclient)
+
+        # advance checkpoint to 1 if only running bootstraps
+        if self._boots_only:
+            if not self._checkpoint:
+                self._checkpoint = 1
 
         # run bootstrap replicates (min 1 b/c the original is 'boot' 0)
         for bidx in range(self._checkpoint, self.params.nboots + 1):
