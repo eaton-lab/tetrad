@@ -11,6 +11,7 @@ __interactive__ = 1
 
 """
 TODO: 
+	- insert a test here to check MKL and OPENBLAS...
     - clone vcf convert from ipyrad
     - add linkage option to CLI
     - speed up converter using numba
