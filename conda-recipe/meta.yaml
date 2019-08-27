@@ -1,5 +1,5 @@
 {% set name = "tetrad" %}
-{% set version = "0.9.4" %}
+{% set version = "0.9.5" %}
 # {% set sha256 = "311250f253539e2e1586f4e30728ad63e8a66e1119988cc5967965e911671a7b" %}
 
 package:
@@ -12,29 +12,34 @@ source:
   git_url: https://github.com/eaton-lab/tetrad.git
   git_rev: {{version}}
 
+# binary relocation is required so cannot do arch.
 build:
-  number: 0
+  number: 1
   script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "
   entry_points:
     - tetrad = tetrad.__main__:main
+  # binary_has_prefix_files:
+    # - bin/find-cut-Linux-64
+    # - bin/find-cut-Mac-64
 
+# works with mkl or openblas, but mkl is better tested;
+# requires conda-forge channel if mpi4py to be included by default...
 requirements:
   host:
     - pip
     - python
-    # - mkl
+    - mkl
   run:
     - python
-    # - mkl
-    - pandas
-    - scipy
+    - mkl
+    - scipy             # only used for comb currently; TODO remove.
     - numpy
     - numba >=0.39
     - future
     - h5py
-    - ipyparallel >=6.0.2
-    - mpi4py >=3.0
     - toytree >=0.2
+    - ipyparallel >=6.0.2
+    - mpi4py >=3.0    
 
 test:
   imports:
