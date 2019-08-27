@@ -122,15 +122,15 @@ class CLI:
                 if not self.args.cores:
                     raise TetradError("must provide -c argument with --MPI")
 
-            # get pool object and start parallel job
-            pool = Parallel(
-                tool=self.data, 
-                rkwargs={"force": self.args.force, "boots_only": self.args.boots_only},
-                ipyclient=ipyclient,
-                show_cluster=True,
-                auto=True,
-                )
-            pool.wrap_run()
+        # get pool object and start parallel job
+        pool = Parallel(
+            tool=self.data, 
+            rkwargs={"force": self.args.force, "boots_only": self.args.boots_only},
+            ipyclient=ipyclient,
+            show_cluster=True,
+            auto=True,
+            )
+        pool.wrap_run()
            
 
     def get_data(self):
