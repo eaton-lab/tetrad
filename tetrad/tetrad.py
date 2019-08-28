@@ -161,7 +161,7 @@ class Tetrad(object):
         self.trees.nhx = os.path.join(self.dirs, self.name + ".tree.nhx")
 
         # io file paths
-        self.files.data = data
+        self.files.data = os.path.abspath(os.path.expanduser(data))
         self.files.idb = os.path.join(self.dirs, self.name + ".input.hdf5")
         self.files.odb = os.path.join(self.dirs, self.name + ".output.hdf5")
             
