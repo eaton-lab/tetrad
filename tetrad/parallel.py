@@ -21,6 +21,13 @@ import tetrad
 from .utils import TetradError
 
 
+# get the ipcluster binary even if we are in a non default conda env
+# and fallback on the one in our path is not found, or raise an error.
+IPCLUSTER_BIN = os.path.join(sys.base_prefix, "bin", "ipcluster")
+assert os.path.exists(IPCLUSTER_BIN), (
+    "ipcluster not found, check it is installed in your environment.")
+
+
 class Parallel(object):
     """
     Connect or launch ipcluster and wrap jobs running on Client engines so 
@@ -67,7 +74,7 @@ class Parallel(object):
 
         # make ipcluster arg call
         standard = [
-            "ipcluster", "start",
+            IPCLUSTER_BIN, "start",
             "--daemonize", 
             "--cluster-id={}".format(self.tool.ipcluster["cluster_id"]),
             "--engines={}".format(self.tool.ipcluster["engines"]),
@@ -86,7 +93,7 @@ class Parallel(object):
         # if cluster with THIS ID is running then kill it and try again
         except subprocess.CalledProcessError:
             subprocess.check_call([
-                "ipcluster", "stop", 
+                IPCLUSTER_BIN, "stop", 
                 "--cluster-id", self.tool.ipcluster["cluster_id"],
             ], 
                 stderr=subprocess.STDOUT,
