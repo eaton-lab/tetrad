@@ -14,25 +14,19 @@ import subprocess as sps
 from .utils import TetradError, ProgressBar
 from .worker import nworker
 from .jitted import resolve_ambigs, jshuffle_cols, jget_shape, jfill_boot
-
-try:
-    import toytree
-except ImportError:
-    pass
+import toytree
 
 
-# PATH to the QMC binary if local installation (e.g., pip)
-TETPATH = (
-    os.path.dirname(
-        os.path.abspath(
-            os.path.dirname(__file__))))
-BINPATH = os.path.join(TETPATH, "bin")
+# If conda installed then the QMC binary should be in this conda env bin 
 PLATFORM = ("Linux" if "linux" in sys.platform else "Mac")
-QMC = os.path.join(os.path.abspath(BINPATH), "find-cut-{}-64".format(PLATFORM))
+BINARY = "find-cut-{}-64".format(PLATFORM)
+QMC = os.path.join(sys.base_prefix, "bin", BINARY)
 
-# if local path not found then use just the binary which conda puts in PATH
+# if pip+github installed then QMC will be relative to this file
 if not os.path.exists(QMC):
-    QMC = os.path.split(QMC)[-1]
+    TETPATH = (os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+    BINPATH = os.path.join(TETPATH, "bin")
+    QMC = os.path.join(os.path.abspath(BINPATH), BINARY)
 
 # check for binary
 proc = sps.Popen(["which", QMC], stderr=sps.STDOUT, stdout=sps.PIPE)
