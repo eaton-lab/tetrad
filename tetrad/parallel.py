@@ -187,7 +187,7 @@ class Parallel(object):
 
         except (IOError, OSError, ipp.TimeoutError, ipp.NoEnginesRegistered):
             raise TetradError(
-                "\nipcluster not found, use 'auto=True' or see docs.")
+                "\nipcluster failed, see details of 'Parallelization' in docs.")
 
         finally:
             # no matter what we reset the stds
