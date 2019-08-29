@@ -23,7 +23,7 @@ from .utils import TetradError
 
 # get the ipcluster binary even if we are in a non default conda env
 # and fallback on the one in our path is not found, or raise an error.
-IPCLUSTER_BIN = os.path.join(sys.base_prefix, "bin", "ipcluster")
+IPCLUSTER_BIN = os.path.join(sys.exec_prefix, "bin", "ipcluster")
 assert os.path.exists(IPCLUSTER_BIN), (
     "ipcluster not found, check it is installed in your environment.")
 
