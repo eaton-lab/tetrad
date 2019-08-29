@@ -3,7 +3,7 @@
 from .tetrad import Tetrad as tetrad
 
 # dunders mifflin
-__version__ = "0.9.7"
+__version__ = "0.9.8"
 __author__ = "Deren Eaton"
 __interactive__ = 1
 
