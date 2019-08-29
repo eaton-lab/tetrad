@@ -1,16 +1,14 @@
 {% set name = "tetrad" %}
-{% set version = "0.9.5" %}
-# {% set sha256 = "311250f253539e2e1586f4e30728ad63e8a66e1119988cc5967965e911671a7b" %}
+{% set version = "0.9.8" %}
+{% set sha256 = "afee8d0e7dc9319bff49c830ef926629bb1648c0bdf41bb8039da7cc53f73784" %}
 
 package:
   name: {{name}}
   version: {{version}}
 
 source:
-  #url: https://github.com/eaton-lab/{{name}}/archive/{{version}}.tar.gz
-  #sha256: {{sha256}}
-  git_url: https://github.com/eaton-lab/tetrad.git
-  git_rev: {{version}}
+  url: https://github.com/eaton-lab/tetrad/archive/{{version}}.tar.gz
+  sha256: {{sha256}}
 
 # binary relocation is required so cannot do arch.
 build:
@@ -18,9 +16,6 @@ build:
   script: "{{ PYTHON }} -m pip install . --no-deps --ignore-installed -vv "
   entry_points:
     - tetrad = tetrad.__main__:main
-  # binary_has_prefix_files:
-    # - bin/find-cut-Linux-64
-    # - bin/find-cut-Mac-64
 
 # works with mkl or openblas, but mkl is better tested;
 # requires conda-forge channel if mpi4py to be included by default...
@@ -28,10 +23,8 @@ requirements:
   host:
     - pip
     - python
-    - mkl
   run:
     - python
-    - mkl
     - scipy             # only used for comb currently; TODO remove.
     - numpy
     - numba >=0.39
@@ -39,7 +32,7 @@ requirements:
     - h5py
     - toytree >=0.2
     - ipyparallel >=6.0.2
-    - mpi4py >=3.0    
+    - mpi4py >=3.0
 
 test:
   imports:
