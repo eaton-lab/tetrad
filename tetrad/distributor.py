@@ -81,6 +81,14 @@ class Distributor:
         """
         Run nworker() on remote engines. 
         """
+
+        # if writing to a log file (e.g., HPC) then make progbar intervals large
+        intv = 0
+        if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
+            interval = 30
+        else:
+            interval = 1
+
         # submit jobs distriuted across the cluster.
         asyncs = {}
         for job in self.jobs:
@@ -108,12 +116,15 @@ class Distributor:
                 self.insert_to_hdf5(key, results)
                 del asyncs[key]
 
-            # progress bar update
-            prog.update()
+            # print progress bar update
+            intv += 1
+            if not interval % interval:
+                prog.update()
+                intv = 0
 
             # done is counted on finish, so this means we're done
             if len(asyncs):
-                time.sleep(0.1)
+                time.sleep(0.9)
             else:
                 break
 
