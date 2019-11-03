@@ -79,7 +79,7 @@ def nworker(tet, chunk):
 
         # TODO: test again numbafying the loop below, but on a super large 
         # matrix. Maybe two strategies should be used for different sized 
-        # problems...
+        # problems... LOL at this and the note below.
 
         # fill arrays with results as we compute them. This iterates
         # over all of the quartet sets in this sample chunk. It would
@@ -88,19 +88,19 @@ def nworker(tet, chunk):
             sidx = smps[idx]
             seqs = seqview[sidx]
 
-            ## these axis calls cannot be numbafied, but I can't 
-            ## find a faster way that is JIT compiled, and I've
-            ## really, really, really tried. Tried again now that
-            ## numba supports axis args for np.sum. Still can't 
-            ## get speed improvements by numbifying this loop.
-            ## tried guvectorize too...
+            # these axis calls cannot be numbafied, but I can't 
+            # find a faster way that is JIT compiled, and I've
+            # really, really, really tried. Tried again now that
+            # numba supports axis args for np.sum. Still can't 
+            # get speed improvements by numbifying this loop.
+            # tried guvectorize too...
             nmask = np.any(nall_mask[sidx], axis=0)
             nmask += np.all(seqs == seqs[0], axis=0) 
 
-            ## here are the jitted funcs
+            # here are the jitted funcs
             bidx, invar = calculate(seqs, maparr, nmask, TESTS)
 
-            ## store results
+            # store results
             rquartets[idx] = sidx[bidx]
             rinvariants[idx] = invar
 

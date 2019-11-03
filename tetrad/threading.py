@@ -33,7 +33,7 @@ class BLAS:
         # store attrs       
         self.kind = kind
         self.cdll = cdll
-        
+
         # clone cdll set and get funcs
         if kind == _MKL_:
             self.get_n_threads = cdll.MKL_Get_Max_Threads
@@ -41,7 +41,7 @@ class BLAS:
         else:
             self.get_n_threads = cdll.openblas_get_num_threads
             self.set_n_threads = cdll.openblas_set_num_threads
-            
+
 
 
 def get_blas(numpy_module):
@@ -73,7 +73,7 @@ def get_blas(numpy_module):
     if match:
         lib = ctypes.CDLL(match.groupdict()['path'])
         return BLAS(lib, kind)
-    
+
 
 
 class single_threaded:
@@ -109,7 +109,7 @@ class single_threaded:
                     'Failed to reset {} to {} threads (previous value).'
                     .format(self.blas.kind, self.old_n_threads)
                 )
-    
+
     def __call__(self, func):
         def _func(*args, **kwargs):
             self.__enter__()

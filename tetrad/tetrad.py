@@ -115,7 +115,8 @@ class Tetrad(object):
         trees: access trees from object after analysis is finished
         samples: names of samples in the data set
     """
-    def __init__(self,
+    def __init__(
+        self,
         name, 
         data=None,
         workdir="analysis-tetrad",
@@ -149,6 +150,7 @@ class Tetrad(object):
         self.trees = Trees()
 
         # required arguments 
+        self._fullsampled = True        
         self.params.nboots = nboots
         self.params.nquartets = nquartets
         self.params.resolve_ambigs = resolve_ambigs
@@ -157,17 +159,17 @@ class Tetrad(object):
         # tree paths
         self.trees.tree = os.path.join(self.dirs, self.name + ".tree")
         self.trees.cons = os.path.join(self.dirs, self.name + ".tree.cons")
-        self.trees.boots = os.path.join(self.dirs, self.name + ".tree.boots")        
+        self.trees.boots = os.path.join(self.dirs, self.name + ".tree.boots")
         self.trees.nhx = os.path.join(self.dirs, self.name + ".tree.nhx")
 
         # io file paths
         self.files.data = os.path.abspath(os.path.expanduser(data))
         self.files.idb = os.path.join(self.dirs, self.name + ".input.hdf5")
         self.files.odb = os.path.join(self.dirs, self.name + ".output.hdf5")
-            
+
         # load arrays, files, samples from data or existing analysis 
         if load:
-            self._load(self.name, self.dirs)
+            self._load_file_paths()  # (self.name, self.dirs)
         else:
             # if self.kwargs["initarr"]:
             self._init_seqarray()
@@ -245,6 +247,7 @@ class Tetrad(object):
                     "quartet sampler (random, nsamples**2.8): {} / {}"
                     .format(self.params.nquartets, total)
                 )
+                self._fullsampled = False
 
         else:
             if self.params.nquartets > total:
@@ -253,7 +256,8 @@ class Tetrad(object):
                     "quartet sampler (full): {} / {}"
                     .format(self.params.nquartets, total)
                 )
-            else:                
+            else:
+                self.params.nquartets = int(self.params.nquartets)
                 self._print(
                     "quartet sampler (random): {} / {}"
                     .format(self.params.nquartets, total)
@@ -264,12 +268,12 @@ class Tetrad(object):
                 # .format(self.params.nquartets, total))
 
 
-
     def _load_file_paths(self):
         "load file paths if they exist, or None if empty"
-        for key, val in self.trees.__dict__.items():
+        for key in self.trees:
+            val = getattr(self.trees, key)
             if not os.path.exists(val):
-                self.trees.__dict__[key] = None
+                setattr(self.trees, key, None)
 
 
     def _init_seqarray(self, quiet=True):
@@ -391,12 +395,14 @@ class Tetrad(object):
             compression='gzip',
         )
         io5.close()
-            
+
         # submit store job to write into self.database.input
         self._print("initializing quartet sets database")
-        store_all(self)
-        # store_random(self)
-        # store_equal(self)
+        if self._fullsampled:
+            store_all(self)
+        else:
+            store_random(self)
+            # store_equal(self)
 
 
     def _refresh(self):
@@ -481,7 +487,7 @@ class Tetrad(object):
         """
         Run inside wrapped distributed parallel client.
         """
-        # fill the quartet sets array
+        # fill the quartet sets array (this only occurs once)
         self._store_N_samples(force, ipyclient)
 
         # advance checkpoint to 1 if only running bootstraps
@@ -512,7 +518,7 @@ class Tetrad(object):
 
 
 ##################################################
-## quartet sampling funcs to fill the database
+# quartet sampling funcs to fill the database
 ##################################################
 
 # replace self here with tet to be more clear
@@ -704,11 +710,9 @@ def store_equal(self):
         del sampled
 
 
-
 ########################################
-## some itertools cookbook recipes
+# some itertools cookbook recipes
 ########################################
-
 # def n_choose_k(n, k):
 #     """ 
 #     Get the number of quartets as n-choose-k. This is used in equal 

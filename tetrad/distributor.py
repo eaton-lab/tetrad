@@ -20,7 +20,7 @@ import toytree
 # If conda installed then the QMC binary should be in this conda env bin 
 PLATFORM = ("Linux" if "linux" in sys.platform else "Mac")
 BINARY = "find-cut-{}-64".format(PLATFORM)
-QMC = os.path.join(sys.exec_prefix, "bin", BINARY)
+QMC = os.path.join(sys.base_prefix, "bin", BINARY)
 
 # if pip+github installed then QMC will be relative to this file
 if not os.path.exists(QMC):
@@ -41,17 +41,17 @@ class Distributor:
     Class with functions distribute jobs on remote engines
     """
     def __init__(self, tet, ipyclient, start=None, quiet=False):
-        
+
         # store params
         self.tet = tet
         self.boot = bool(self.tet._checkpoint)
-        
+
         # parallel and progress bars
         self.start = (start if start else time.time())
         self.quiet = quiet        
         self.ipyclient = ipyclient
         self.lbview = self.ipyclient.load_balanced_view()
-        
+
         # store idxs of jobs to be distributed
         self.jobs = range(0, self.tet.params.nquartets, self.tet._chunksize)
 
@@ -135,7 +135,7 @@ class Distributor:
         only a single SNP from each locus according to the maparr. 
         """
         with h5py.File(self.tet.files.idb, 'r+') as io5:
-            
+
             # load the original data (seqarr and spans)
             snps = io5["seqarr"][:]
             spans = io5["spans"][:]
@@ -151,7 +151,7 @@ class Distributor:
             newbarr = np.zeros((snps.shape[0], arrlen), dtype=np.uint8)
             newbmap = np.zeros((arrlen, 2), dtype=np.uint32)
             newbmap[:, 1] = np.arange(1, arrlen + 1)
-            
+
             # fill the new arrays            
             tmpseq, tmpmap = jfill_boot(snps, newbarr, newbmap, spans, loci)
 
@@ -189,7 +189,7 @@ class Distributor:
             ## we get different resolutions.
             if self.tet.params.resolve_ambigs:
                 tmpseq = resolve_ambigs(tmpseq)
-        
+
             ## convert CATG bases to matrix indices
             tmpseq[tmpseq == 65] = 0
             tmpseq[tmpseq == 67] = 1
@@ -309,7 +309,7 @@ class Distributor:
     #     max count in this matrix is 65535 (uint16)... 
     #     """      
     #     bootkey = "boot{}".format(self.tet.checkpoint.boots)
-       
+
     #     # 
     #     with h5py.File(self.tet.files.odb, 'r+') as io5:
 
