@@ -12,7 +12,7 @@ from .utils import GETCONS
 @njit(parallel=True)
 def subsample_loci_and_snps(snpsmap, seed, resample_loci):
     "Subsample loci and SNPs (one per locus) using snpsmap"
-    
+
     # initialize numba random seed 
     np.random.seed(seed)
 
@@ -62,7 +62,7 @@ def calculate(seqnon, mapcol, nmask, tests):
         rank[test] = np.linalg.matrix_rank(mats[test].astype(np.float64))
 
     # get minrank, or 11 (TODO: can apply seq model here)
-    minrank = int(min(11, rank.min()))
+    minrank = int(min(10, rank.min()))
     for test in range(3):
         scor[test] = np.sqrt(np.sum(svds[test, minrank:]**2))
 
@@ -70,6 +70,7 @@ def calculate(seqnon, mapcol, nmask, tests):
     best = np.where(scor == scor.min())[0]
     bidx = tests[best][0]
 
+    # returns the best quartet resolution and the first matrix (for invars)
     return bidx, mats[0]
 
 
@@ -145,10 +146,10 @@ def jget_spans(maparr):
     lidx = 0
     # advance over all snp rows 
     for idx in range(maparr.shape[0]):
-        
+
         # get locus id at this row 0, 0, 0, 0
         eidx = maparr[idx, 0]
-        
+
         # if locus id is not sidx
         if eidx != sidx:
 
@@ -160,7 +161,6 @@ def jget_spans(maparr):
             else:
                 spans[lidx] = spans[lidx - 1, 1], idx
 
-                
             lidx += 1
             sidx = locs[lidx]
 
