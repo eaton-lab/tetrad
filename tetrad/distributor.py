@@ -56,11 +56,11 @@ class Distributor:
         self.jobs = range(0, self.tet.params.nquartets, self.tet._chunksize)
 
         # print progress
-        self.printstr = "inferring full tree   "
+        self.printstr = "inferring full tree"
         if self.boot:
             self.printstr = (
-                "bootstrap inference {}"
-                .format(self.tet._checkpoint))
+                "bootstrap inference {}".format(self.tet._checkpoint)
+            )
 
 
     def run(self):
@@ -85,7 +85,7 @@ class Distributor:
         # if writing to a log file (e.g., HPC) then make progbar intervals large
         intv = 0
         if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
-            interval = 30
+            interval = 10
         else:
             interval = 1
 
@@ -102,6 +102,7 @@ class Distributor:
         )
 
         # catch results as they return and enter to HDF and remove
+        avgsnps = []
         while 1:
             # gather finished jobs
             finished = [i for i, j in asyncs.items() if j.ready()]
@@ -112,13 +113,21 @@ class Distributor:
 
                 # store result and purge it
                 prog.finished += 1
-                results = rasync.get()
-                self.insert_to_hdf5(key, results)
+                rquart, rinvars, chunkavgsnps = rasync.get()
+                self.insert_to_hdf5(key, (rquart, rinvars))
                 del asyncs[key]
+
+                # calculate new average
+                avgsnps.append(chunkavgsnps)
+                meansnps = np.mean(avgsnps)
 
             # print progress bar update
             intv += 1
-            if not interval % interval:
+            if not intv % interval:
+                if avgsnps:
+                    prog.message = (
+                        "{} | mean SNPs/quartet: {:.0f}"
+                        .format(self.printstr, meansnps))
                 prog.update()
                 intv = 0
 
