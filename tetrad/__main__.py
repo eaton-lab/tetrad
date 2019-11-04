@@ -28,55 +28,98 @@ def parse_command_line():
         epilog=HELP_MESSAGE)
 
     # get version from ipyrad 
-    parser.add_argument('-v', '--version', action='version', 
+    parser.add_argument(
+        '-v', '--version', 
+        action='version', 
         version=str(get_distribution("tetrad")))
 
-    parser.add_argument('-f', "--force", action='store_true',
+    parser.add_argument(
+        '-f', "--force", 
+        action='store_true',
         help="force overwrite of existing data")
 
-    parser.add_argument('-i', metavar="input file", dest="snps",
-        type=str, default=None,
+    parser.add_argument(
+        '-i', 
+        metavar="input file", 
+        dest="snps",
+        type=str, 
+        default=None,
         help="path to input data file (.vcf or .hdf5)")
 
     # parser.add_argument('-j', metavar='json', dest="json",
     # type=str, default=None,
     # help="load checkpointed/saved analysis from JSON file.")
 
-    parser.add_argument('-q', metavar="nquartets", dest="nquartets",
-        type=float, default=0,
+    parser.add_argument(
+        '-q', 
+        metavar="nquartets", 
+        dest="nquartets",
+        type=float,
+        default=0,
         help="number of quartets to sample (default=random N**2.8)")
 
-    parser.add_argument('-b', metavar="boots", dest="boots",
-        type=float, default=0,
+    parser.add_argument(
+        '-b', 
+        metavar="boots", 
+        dest="boots",
+        type=float, 
+        default=0,
         help="number of non-parametric bootstrap replicates")
 
-    parser.add_argument('-n', metavar="name", dest="name",
-        type=str, default="test",
+    parser.add_argument(
+        '-n', 
+        metavar="name", 
+        dest="name",
+        type=str, 
+        default="test",
         help="output name prefix (default: 'test')")
 
-    parser.add_argument('-o', metavar="workdir", dest="workdir",
-        type=str, default="./analysis-tetrad",
+    parser.add_argument(
+        '-o', 
+        metavar="workdir", 
+        dest="workdir",
+        type=str, 
+        default="./analysis-tetrad",
         help="output directory (default: creates ./analysis-tetrad)")
 
-    parser.add_argument("-c", metavar="cores", dest="cores",
-        type=int, default=0,
+    parser.add_argument(
+        "-c", 
+        metavar="cores", 
+        dest="cores",
+        type=int, 
+        default=0,
         help="setting -c improves parallel efficiency with --MPI")
 
-    parser.add_argument("-x", metavar="random_seed", dest="rseed",
-        type=int, default=None,
+    parser.add_argument(
+        "-x", 
+        metavar="random_seed", 
+        dest="rseed",
+        type=int,
+        default=None,
         help="random seed for quartet sampling and/or bootstrapping")    
 
-    parser.add_argument("--invariants", action='store_true',
+    parser.add_argument(
+        "--invariants", 
+        action='store_true',
         help="save a (large) database of all invariants")
 
-    parser.add_argument("--MPI", action='store_true',
+    parser.add_argument(
+        "--MPI", 
+        action='store_true',
         help="connect to parallel CPUs across multiple nodes")
 
-    parser.add_argument("--ipcluster", metavar="profile", dest="ipcluster",
-        type=str, nargs="?", const="default",
+    parser.add_argument(
+        "--ipcluster", 
+        metavar="profile", 
+        dest="ipcluster",
+        type=str,
+        nargs="?", 
+        const="default",
         help="connect to a running ipcluster instance")
 
-    parser.add_argument("--boots-only", action="store_true", 
+    parser.add_argument(
+        "--boots-only", 
+        action="store_true", 
         help="only run bootstrap replicate inference")
 
     # if no args then return help message
@@ -131,7 +174,7 @@ class CLI:
             auto=True,
             )
         pool.wrap_run()
-           
+
 
     def get_data(self):
         """
@@ -156,10 +199,11 @@ class CLI:
             if (os.path.exists(newjson)) and (not self.args.force):
                 raise SystemExit(
                     QUARTET_EXISTS
-                    .format(self.args.name, self.args.workdir, 
+                    .format(
+                        self.args.name, self.args.workdir, 
                         self.args.workdir, self.args.name, self.args.name)
                     )
-            
+
             # if JSON doesn't exist, or it exists and arg force then create new
             else:
                 self.data = Tetrad(
@@ -191,7 +235,7 @@ class CLI:
             )
 
 
-## CONSTANTS AND WARNINGS
+# CONSTANTS AND WARNINGS
 HEADER = """
 -------------------------------------------------------
 tetrad [v.{}] 
@@ -242,6 +286,7 @@ HELP_MESSAGE = """\
 
 def main():
     CLI()
+
 
 if __name__ == "__main__": 
     main()
