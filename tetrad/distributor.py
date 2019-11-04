@@ -44,7 +44,7 @@ class Distributor:
 
         # store params
         self.tet = tet
-        self.boot = bool(self.tet._checkpoint)
+        self.boot = self.tet._finished_full
 
         # parallel and progress bars
         self.start = (start if start else time.time())
@@ -56,10 +56,10 @@ class Distributor:
         self.jobs = range(0, self.tet.params.nquartets, self.tet._chunksize)
 
         # print progress
-        self.printstr = "inferring full tree"
+        self.printstr = "inferring full tree *"
         if self.boot:
             self.printstr = (
-                "bootstrap inference {}".format(self.tet._checkpoint)
+                "bootstrap inference {}".format(self.tet._finished_boots + 1)
             )
 
 
@@ -84,10 +84,10 @@ class Distributor:
 
         # if writing to a log file (e.g., HPC) then make progbar intervals large
         intv = 0
-        if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
-            interval = 10
-        else:
-            interval = 1
+        # if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
+        # interval = 30
+        # else:
+        interval = 1            
 
         # submit jobs distriuted across the cluster.
         asyncs = {}
@@ -102,6 +102,7 @@ class Distributor:
         )
 
         # catch results as they return and enter to HDF and remove
+        # TODO: change this to use an array, of HDF5, or just use invar??
         avgsnps = []
         while 1:
             # gather finished jobs
@@ -121,13 +122,16 @@ class Distributor:
                 avgsnps.append(chunkavgsnps)
                 meansnps = np.mean(avgsnps)
 
-            # print progress bar update
+                # update the message
+                prog.message = (
+                    "{} | mean SNPs/quartet: {:.0f}"
+                    .format(self.printstr, meansnps)
+                )
+                prog.update()
+
+            # print progress bar update every N seconds
             intv += 1
-            if not intv % interval:
-                if avgsnps:
-                    prog.message = (
-                        "{} | mean SNPs/quartet: {:.0f}"
-                        .format(self.printstr, meansnps))
+            if not intv % interval:                   
                 prog.update()
                 intv = 0
 
@@ -226,7 +230,7 @@ class Distributor:
         if self.tet.params.save_invariants:
 
             # create a dataset for boots
-            bootkey = "boot{}".format(self.tet._checkpoint)
+            bootkey = "boot{}".format(self.tet._finished_boots)
             io5["invariants"].create_dataset(
                 name=bootkey, 
                 shape=(self.tet.params.nquartets, 16, 16),
@@ -300,7 +304,6 @@ class Distributor:
 
         # save the tree to file
         if self.boot:
-            # self.tet.checkpoint.boots == self.tet.params.nboots
             with open(self.tet.trees.boots, 'a') as outboot:
                 outboot.write(newick + "\n")
         else:

@@ -18,7 +18,6 @@ from builtins import range, str
 
 # standard lib
 import os
-import json
 import copy
 import itertools
 
@@ -122,9 +121,9 @@ class Tetrad(object):
         workdir="analysis-tetrad",
         nquartets=0, 
         nboots=0,
-        load=False,
         save_invariants=False,
         seed=None,
+        load=False,        
         *args, 
         **kwargs):
 
@@ -193,8 +192,11 @@ class Tetrad(object):
             "pids": {},
             }
 
+        # get checkpoint on progress (TODO: get toytree to solve this better)
+        self._finished_full = False
+        self._finished_boots = 0
+
         # private attributes
-        self._checkpoint = 0 
         self._chunksize = 1
         self._tmp = None
 
@@ -205,6 +207,28 @@ class Tetrad(object):
         self.stats = Params()
         # self.stats.n_quartets_sampled = self.params.nquartets
 
+
+    def _get_checkpoint(self):
+        """
+        Get checkpoint as the number of finished *bootstraps*
+        0 finished boots does not mean 0 finished full trees.
+        """
+        # is the full tree finished?
+        self._finished_full = toytree.tree(self.trees.tree).ntips > 1
+
+        # override to make always True if bootsonly
+        if self._boots_only:
+            self._finished_full = True
+
+        # how many boots are finished?
+        tmp = toytree.mtree(self.trees.boots)
+        if tmp.ntrees > 1:
+            self._finished_boots = tmp.ntrees 
+        else:
+            if tmp.treelist[0].ntips > 1:
+                self._finished_boots = 1
+            else:
+                self._finished_boots = 0
 
 
     def _check_file_handles(self):
@@ -242,13 +266,13 @@ class Tetrad(object):
             if rough >= total:
                 self.params.nquartets = total
                 self._print(
-                    "quartet sampler (full): {} / {}"
+                    "quartet sampler [full]: {} / {}"
                     .format(self.params.nquartets, total)
                 )
             else:
                 self.params.nquartets = rough
                 self._print(
-                    "quartet sampler (random, nsamples**2.8): {} / {}"
+                    "quartet sampler [random, nsamples**2.8]: {} / {}"
                     .format(self.params.nquartets, total)
                 )
                 self._fullsampled = False
@@ -257,14 +281,14 @@ class Tetrad(object):
             if self.params.nquartets > total:
                 self.params.nquartets = total
                 self._print(
-                    "quartet sampler (full): {} / {}"
+                    "quartet sampler [full]: {} / {}"
                     .format(self.params.nquartets, total)
                 )
             else:
                 self._fullsampled = False
                 self.params.nquartets = int(self.params.nquartets)
                 self._print(
-                    "quartet sampler (random): {} / {}"
+                    "quartet sampler [random]: {} / {}"
                     .format(self.params.nquartets, total)
                 )
         # else:
@@ -275,10 +299,25 @@ class Tetrad(object):
 
     def _load_file_paths(self):
         "load file paths if they exist, or None if empty"
+
+        # print status
+        self._get_checkpoint()
+        print(
+            "loading checkpoint: {} bootstraps completed."
+            .format(self._finished_boots)
+        )
+
+        # this is unnecessary...
         for key in self.trees:
             val = getattr(self.trees, key)
             if not os.path.exists(val):
                 setattr(self.trees, key, None)
+
+        # reloading info from hdf5
+        assert ".snps.hdf5" in self.files.data, "data file is not .snps.hdf5"
+        io5 = h5py.File(self.files.data, 'r')
+        names = [i.decode() for i in io5["snps"].attrs["names"]]
+        self.samples = names
 
 
     def _init_seqarray(self, quiet=True):
@@ -334,7 +373,7 @@ class Tetrad(object):
 
         # report 
         self._print(
-            "max unlinked SNPs per quartet (nloci): {}"
+            "max unlinked SNPs per quartet [nloci]: {}"
             .format(nloci))
 
         # cleanup
@@ -344,7 +383,7 @@ class Tetrad(object):
         del snpsmap
 
 
-    def _store_N_samples(self, force, ipyclient):
+    def _get_chunksize(self, ncpus):
         """ 
         Find all quartets of samples and store in a large array
         A chunk size is assigned for sampling from the array of quartets
@@ -364,7 +403,6 @@ class Tetrad(object):
             breaks = 32
 
         # incorporate n engines into chunksize
-        ncpus = len(ipyclient)    
         self._chunksize = max([
             1, 
             sum([
@@ -373,6 +411,8 @@ class Tetrad(object):
             ])
         ])
 
+
+    def _init_odb(self):
         # create database for saving resolved quartet sets (ad|bc)
         io5 = h5py.File(self.files.odb, 'w')
         io5.create_dataset(
@@ -384,6 +424,8 @@ class Tetrad(object):
         io5.create_group("invariants")
         io5.close()
 
+
+    def _init_idb_quartets(self, force):
         # create database for saving raw quartet sets (a,b,c,d)
         io5 = h5py.File(self.files.idb, 'a')
         if io5.get("quartets"):
@@ -454,7 +496,7 @@ class Tetrad(object):
             print(message)
 
 
-    def run(self, force=False, quiet=False, ipyclient=None, auto=False):
+    def run(self, force=False, quiet=False, ipyclient=None, auto=False, show_cluster=False):
         """
         Parameters
         ----------
@@ -470,9 +512,21 @@ class Tetrad(object):
         auto (bool):
             Automatically start and cleanup parallel client.
         """
+
         # force will refresh (clear) database to be re-filled
         if force:
             self._refresh()
+
+        # get completed files
+        self._get_checkpoint()
+
+        # check for bail 
+        if (self._finished_boots >= self.params.nboots) and (not force):
+            print(
+                "{} bootstrap result trees already exist for {}."
+                .format(self.params.nboots, self.name)
+            )
+            return
 
         # update quiet param
         self.quiet = quiet
@@ -480,39 +534,57 @@ class Tetrad(object):
         # distribute parallel job
         pool = Parallel(
             tool=self,
-            rkwargs={"force": force, "boots_only": self._boots_only},
+            rkwargs={"force": force}, 
             ipyclient=ipyclient,
-            show_cluster=False,
+            show_cluster=show_cluster,
             auto=auto,
             )
         pool.wrap_run()
 
 
-    def _run(self, force, ipyclient, boots_only):
+    def _run(self, force, ipyclient):
         """
         Run inside wrapped distributed parallel client.
         """
-        # fill the quartet sets array (this only occurs once)
-        self._store_N_samples(force, ipyclient)
+        # fills self._chunksize
+        self._get_chunksize(len(ipyclient))
 
-        # advance checkpoint to 1 if only running bootstraps
-        if self._boots_only:
-            if not self._checkpoint:
-                self._checkpoint = 1
+        # init databases if (3 reasons)
+        a1 = (self._boots_only and not self._finished_boots)
+        a2 = (not self._finished_full)
+        a3 = force
+        if a1 or a2 or a3:
+            # get fresh odb for writing results
+            self._init_odb()
 
-        # run bootstrap replicates (min 1 b/c the original is 'boot' 0)
-        for bidx in range(self._checkpoint, self.params.nboots + 1):
+            # fill the quartet sets array (this only occurs once)
+            self._init_idb_quartets(force)
 
-            # distribute parallel jobs; starts from checkpoint; 
+        # only infer full if not done (also skips if boots_only)
+        if not self._finished_full:
             Distributor(self, ipyclient, start=None, quiet=False).run()
-            self._checkpoint += 1
+            self._print("")
+            self._finished_full = True
+
+        # run bootstrap replicates
+        for bidx in range(self._finished_boots, self.params.nboots):
+            Distributor(self, ipyclient, start=None, quiet=False).run()
+            self._finished_boots += 1
             self._print("")
 
         # map bootstrap support onto the full inference tree
-        if self._checkpoint > 1:
+        if self._finished_boots > 1:
+
+            # load all the boots to get consensus and write to file
             mtre = toytree.mtree(self.trees.boots)
             ctre = mtre.get_consensus_tree()
             ctre.write(self.trees.cons)
+
+            # write the bootstrap supports onto the original tree
+            if not self._boots_only:
+                best = toytree.tree(self.trees.tree)
+                btre = mtre.get_consensus_tree(best_tree=best)
+                btre.write(self.trees.tree)
 
         # cleanup
         ipyclient.purge_everything()

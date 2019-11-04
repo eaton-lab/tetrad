@@ -7,13 +7,12 @@ from __future__ import print_function, division
 import os
 import sys
 import argparse
-import numpy as np
 import ipyparallel as ipp
 from pkg_resources import get_distribution
 
 from .tetrad import Tetrad
 from .utils import TetradError
-from .parallel import Parallel, detect_cpus
+from .parallel import detect_cpus
 
 
 __interactive__ = 1
@@ -98,6 +97,11 @@ def parse_command_line():
         default=None,
         help="random seed for quartet sampling and/or bootstrapping")    
 
+    # parser.add_argument(
+    #     '-r', "--results", 
+    #     action='store_true',
+    #     help="print summary of result file locations")
+
     parser.add_argument(
         "--invariants", 
         action='store_true',
@@ -122,6 +126,7 @@ def parse_command_line():
         action="store_true", 
         help="only run bootstrap replicate inference")
 
+
     # if no args then return help message
     if len(sys.argv) == 1:
         parser.print_help()
@@ -129,13 +134,6 @@ def parse_command_line():
 
     # parse args
     args = parser.parse_args()
-
-    # required args
-    if not (("snps" in args) or ("json" in args)):
-        sys.exit("""
-    Bad arguments: tetrad command must include at least one of (-s or -j) 
-    """)
-
     return args
 
 
@@ -143,96 +141,97 @@ def parse_command_line():
 class CLI:
     def __init__(self):
 
+        # args to be filled
+        self.load = None
+        self.old = None
+
+        # parse command line arguments and print header
         self.args = parse_command_line()
         print(HEADER.format(str(get_distribution("tetrad")).split()[-1]))
-        self.get_data()
-        self.set_params()
 
-        # if ipyclient is running (and matched profile) then use that one
-        if self.args.ipcluster:
-            ipyclient = ipp.Client(profile=self.args.ipcluster)
-            self.data.ipcluster["cores"] = len(ipyclient)
+        # check for existing results files
+        self.find_existing()
 
-        # if not then we need to register and launch an ipcluster instance
-        else:
-            # set CLI ipcluster terms
-            ipyclient = None
-            self.data.ipcluster["cores"] = (
-                self.args.cores if self.args.cores else detect_cpus())
-            self.data.ipcluster["engines"] = "Local"
-            if self.args.MPI:
-                self.data.ipcluster["engines"] = "MPI"
-                if not self.args.cores:
-                    raise TetradError("must provide -c argument with --MPI")
+        # require -i input argument
+        if self.args.snps:
 
-        # get pool object and start parallel job
-        pool = Parallel(
-            tool=self.data, 
-            rkwargs={"force": self.args.force, "boots_only": self.args.boots_only},
-            ipyclient=ipyclient,
-            show_cluster=True,
-            auto=True,
+            # init self.data as Tetrad object
+            self.get_data()
+
+            # if ipyclient is running (and matched profile) then use that one
+            if self.args.ipcluster:
+                ipyclient = ipp.Client(profile=self.args.ipcluster)
+                self.data.ipcluster["cores"] = len(ipyclient)
+
+            # if not then we need to register and launch an ipcluster instance
+            else:
+                # set CLI ipcluster terms
+                ipyclient = None
+                self.data.ipcluster["cores"] = (
+                    self.args.cores if self.args.cores else detect_cpus())
+                self.data.ipcluster["engines"] = "Local"
+                if self.args.MPI:
+                    self.data.ipcluster["engines"] = "MPI"
+                    if not self.args.cores:
+                        raise TetradError("must provide -c argument with --MPI")
+
+            # get pool object and start parallel job
+            self.data.run(
+                force=self.args.force,
+                quiet=False,  # self.args.quiet,
+                ipyclient=ipyclient,
+                auto=True,
+                show_cluster=True,
             )
-        pool.wrap_run()
+
+        else:
+            print("you must use -i to enter a data file.")
+
+        # if self.args.results:
+            # self.print_summary()            
+
+
+    def find_existing(self):
+
+        # old input database file means that it exists
+        self.old = os.path.join(
+            self.args.workdir, 
+            self.args.name + ".output.hdf5",
+        )
+
+        # load if it exists
+        if self.args.force:
+            self.load = False
+        else:      
+            if os.path.exists(self.old):
+                self.load = True
+
+    # def print_summary(self):
+    #     # only do if requested
+    #     if self.args.results:
+    #         print(self.data.)
 
 
     def get_data(self):
         """
+        Find existing data file.
         """
+        # report the analysis name
+        print("tetrad instance: {}".format(self.args.name))
 
-        # if arg JSON then load existing; if force clear results.
-        # if self.args.json:
-            # self.data = Tetrad(
-                # name=self.args.name, workdir=self.args.workdir, load=True)
-            # if self.args.force:
-                # self.data._refresh()
-
-        # else create a new Tetrad class and JSON
-        # else:
-        if 1:
-            # create new JSON path
-            newjson = os.path.join(
-                self.args.workdir, self.args.name + '.tet.json')
-
-            # if a JSON exists and not arg force then bail out
-            print("tetrad instance: {}".format(self.args.name))
-            if (os.path.exists(newjson)) and (not self.args.force):
-                raise SystemExit(
-                    QUARTET_EXISTS
-                    .format(
-                        self.args.name, self.args.workdir, 
-                        self.args.workdir, self.args.name, self.args.name)
-                    )
-
-            # if JSON doesn't exist, or it exists and arg force then create new
-            else:
-                self.data = Tetrad(
-                    name=self.args.name, 
-                    workdir=self.args.workdir, 
-                    data=self.args.snps, 
-                    nboots=int(self.args.boots), 
-                    nquartets=int(self.args.nquartets),
-                    cli=True,
-                    save_invariants=self.args.invariants,
-                    boots_only=self.args.boots_only,
-                    )
-
-
-    def set_params(self):
-
-        # set random seed
-        np.random.seed(self.args.rseed)
-
-        # boots can be set either for a new object or loaded JSON to continue it
-        if self.args.boots:
-            self.data.params.nboots = int(self.args.boots)
-
-        # message about whether we are continuing from existing
-        if self.data._checkpoint:
-            print(
-                LOADING_MESSAGE
-                .format(self.data.name, self.data._checkpoint)
-            )
+        # check for existing results 
+        self.data = Tetrad(
+            name=self.args.name, 
+            workdir=self.args.workdir, 
+            data=self.args.snps, 
+            nboots=int(self.args.boots), 
+            nquartets=int(self.args.nquartets),
+            cli=True,
+            save_invariants=self.args.invariants,
+            boots_only=self.args.boots_only,
+            seed=self.args.rseed,
+            load=self.load,
+        )
 
 
 # CONSTANTS AND WARNINGS
@@ -245,9 +244,9 @@ Quartet inference from phylogenetic invariants
 
 
 QUARTET_EXISTS = """
-Error: tetrad analysis '{}' already exists in {} 
-Use the force argument (-f) to overwrite old analysis files, 
-or -b X to append additional bootstrap reps up to X.
+Error: tetrad analysis '{}' already exists in {}.
+Use the force argument (-f) to overwrite existing files, 
+or add -b X to append additional X bootstrap reps to your results.
 """
 
 
