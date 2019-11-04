@@ -1,6 +1,6 @@
 {% set name = "tetrad" %}
-{% set version = "0.9.8" %}
-{% set sha256 = "afee8d0e7dc9319bff49c830ef926629bb1648c0bdf41bb8039da7cc53f73784" %}
+{% set version = "0.9.9" %}
+{% set sha256 = "bf570a7e52559432c513fc19861391bd55ace12276d06a9b61fc88ac4e1632d9" %}
 
 package:
   name: {{name}}
@@ -30,7 +30,7 @@ requirements:
     - numba >=0.39
     - future
     - h5py
-    - toytree >=0.2
+    - toytree >=1.0
     - ipyparallel >=6.0.2
     - mpi4py >=3.0
 
