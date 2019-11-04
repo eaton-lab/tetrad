@@ -124,8 +124,12 @@ class Tetrad(object):
         nboots=0,
         load=False,
         save_invariants=False,
+        seed=None,
         *args, 
         **kwargs):
+
+        # random seed 
+        np.random.seed(seed)
 
         # check additional (hidden) arguments from kwargs.
         self.kwargs = {"initarr": True, "cli": False, "boots_only": False}
@@ -257,6 +261,7 @@ class Tetrad(object):
                     .format(self.params.nquartets, total)
                 )
             else:
+                self._fullsampled = False
                 self.params.nquartets = int(self.params.nquartets)
                 self._print(
                     "quartet sampler (random): {} / {}"
@@ -543,7 +548,6 @@ def store_all(self):
             i += self._chunksize
 
 
-# not yet updated
 def store_random(self):
     """
     Populate array with random quartets sampled from a generator.
@@ -560,20 +564,18 @@ def store_random(self):
     with h5py.File(self.files.idb, 'a') as io5:
         fillsets = io5["quartets"]
 
-        ## set generators
+        # set generators
         qiter = itertools.combinations(range(len(self.samples)), 4)
-        #rand = np.arange(0, n_choose_k(len(self.samples), 4))
         rand = np.arange(0, int(comb(len(self.samples), 4)))
+
+        # this is where the seed fixes random sampling
         np.random.shuffle(rand)
         rslice = rand[:self.params.nquartets]
         rss = np.sort(rslice)
         riter = iter(rss)
         del rand, rslice
 
-        ## print progress update 1 to the engine stdout
-        print(self._chunksize)
-
-        ## set to store
+        # set to store
         rando = next(riter)
         tmpr = np.zeros((self.params.nquartets, 4), dtype=np.uint16)
         tidx = 0
@@ -585,13 +587,9 @@ def store_random(self):
                         tidx += 1
                         rando = next(riter)
 
-                    ## print progress bar update to engine stdout
-                    if not i % self._chunksize:
-                        print(min(i, self.params.nquartets))
-
             except StopIteration:
                 break
-        ## store into database
+        # store into database
         fillsets[:] = tmpr
         del tmpr
 
