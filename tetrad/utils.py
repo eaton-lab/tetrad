@@ -29,7 +29,7 @@ class Files(object):
             "odb": None,
         }
         self._i = 0
-    
+
     def __iter__(self):
         return self
 
@@ -80,7 +80,7 @@ class Files(object):
     @property
     def idb(self):
         return self._dict["idb"]
-    
+
     @qdump.setter
     def qdump(self, value):
         self._dict["qdump"] = os.path.abspath(os.path.expanduser(value))
@@ -93,7 +93,7 @@ class Files(object):
     @idb.setter
     def idb(self, value):
         self._dict["idb"] = os.path.abspath(os.path.expanduser(value))
- 
+
 
 class Params(object):
     """
@@ -108,7 +108,7 @@ class Params(object):
             "save_invariants": False, 
         }
         self._i = 0
-    
+
     def __iter__(self):
         return self
 
@@ -186,7 +186,7 @@ class Trees(object):
             "nhx": None,
         }
         self._i = 0
-    
+
     def __iter__(self):
         return self
 
@@ -259,7 +259,7 @@ class ProgressBar(object):
         self.start = time.time()
         self.message = message
         self.finished = 0
-        
+
     @property
     def progress(self):
         return 100 * (self.finished / float(self.njobs))
@@ -267,7 +267,7 @@ class ProgressBar(object):
     @property
     def elapsed(self):
         return datetime.timedelta(seconds=int(time.time() - self.start))
- 
+
     def update(self):
         # build the bar
         hashes = '#' * int(self.progress / 5.)
