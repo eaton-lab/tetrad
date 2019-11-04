@@ -146,7 +146,7 @@ class CLI:
         self.args = parse_command_line()
         print(HEADER.format(str(get_distribution("tetrad")).split()[-1]))
         self.get_data()
-        self.set_params()     
+        self.set_params()
 
         # if ipyclient is running (and matched profile) then use that one
         if self.args.ipcluster:
