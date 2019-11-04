@@ -23,7 +23,7 @@ from .utils import TetradError
 
 # get the ipcluster binary even if we are in a non default conda env
 # and fallback on the one in our path is not found, or raise an error.
-IPCLUSTER_BIN = os.path.join(sys.exec_prefix, "bin", "ipcluster")
+IPCLUSTER_BIN = os.path.join(sys.base_prefix, "bin", "ipcluster")
 assert os.path.exists(IPCLUSTER_BIN), (
     "ipcluster not found, check it is installed in your environment.")
 
@@ -82,7 +82,7 @@ class Parallel(object):
             "--n={}".format(self.tool.ipcluster["cores"]),
             "{}".format(iparg),
         ]
-                   
+
         # wrap ipcluster start
         try:
             subprocess.check_call(
@@ -166,7 +166,7 @@ class Parallel(object):
 
                 # Looking for all available cores, auto stop 
                 else:
-                    
+
                     # If MPI and not all found break if no more in 3 secs
                     if self.tool.ipcluster["engines"] == "MPI":
                         # are any cores found yet? do long wait.
@@ -279,7 +279,7 @@ class Parallel(object):
             # run the job
             if not dry_run:
                 self.tool._run(ipyclient=self.ipyclient, **self.rkwargs)
-                   
+
         # print the error and cleanup
         except KeyboardInterrupt:
             print("\n{}Keyboard Interrupt by user\n".format(self.spacer))
