@@ -114,7 +114,8 @@ class Parallel(object):
                 raise
 
         except Exception as inst:
-            sys.exit("Error launching ipcluster for parallelization:\n({})\n"
+            sys.exit(
+                "Error launching ipcluster for parallelization:\n({})\n"
                 .format(inst))
 
 
@@ -357,10 +358,10 @@ class Parallel(object):
                     self.ipyclient.close()
                     if self.show_cluster:
                         self.update_message(
-                            "\n{}Parallel connection closed."
+                            "{}Parallel connection closed."
                             .format(self.spacer))
                         time.sleep(0.5)
-        
+
             # close the cluster info
             # self.widget.close()
 
