@@ -32,10 +32,13 @@ Usage
 .. code:: bash
 
 	# run tetrad on a snps data file from ipyrad
-	tetrad -s data.snps.hfd5 
+	tetrad -i data.snps.hfd5 
 
 	# run on 80 cores distributed over 4 nodes on a cluster
-	tetrad -s data.snps.hfd5 -c 80 --MPI
+	tetrad -i data.snps.hfd5 -c 80 --MPI
+
+    # convert VCF to HDF5 and encode linkage block size.
+    tetrad -i data.vcf -o outdir -n data5K -l 5000
 
 
 SNP sampling
