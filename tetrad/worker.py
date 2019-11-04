@@ -76,6 +76,7 @@ def nworker(tet, chunk):
         # init arrays to fill with results
         rquartets = np.zeros((smps.shape[0], 4), dtype=np.uint16)
         rinvariants = np.zeros((smps.shape[0], 16, 16), dtype=np.uint16)
+        nsnps = np.zeros(smps.shape[0])
 
         # TODO: test again numbafying the loop below, but on a super large 
         # matrix. Maybe two strategies should be used for different sized 
@@ -97,8 +98,15 @@ def nworker(tet, chunk):
             nmask = np.any(nall_mask[sidx], axis=0)
             nmask += np.all(seqs == seqs[0], axis=0) 
 
+            # skip calc and choose a random matrix if no SNPs
+            nsnps[idx] = seqs[:, np.invert(nmask)].shape[1]
+
             # here are the jitted funcs
-            bidx, invar = calculate(seqs, maparr, nmask, TESTS)
+            if nsnps[idx]:
+                bidx, invar = calculate(seqs, maparr, nmask, TESTS)
+            else:
+                bidx = np.random.randint(3)
+                invar = np.zeros((16, 16), dtype=np.uint32)
 
             # store results
             rquartets[idx] = sidx[bidx]
@@ -107,4 +115,4 @@ def nworker(tet, chunk):
         # old thread limit restored on closed context
 
     # return results...
-    return rquartets, rinvariants
+    return rquartets, rinvariants, nsnps.mean()
