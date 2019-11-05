@@ -20,7 +20,7 @@ import toytree
 # If conda installed then the QMC binary should be in this conda env bin 
 PLATFORM = ("Linux" if "linux" in sys.platform else "Mac")
 BINARY = "find-cut-{}-64".format(PLATFORM)
-QMC = os.path.join(sys.base_prefix, "bin", BINARY)
+QMC = os.path.join(sys.prefix, "bin", BINARY)
 
 # if pip+github installed then QMC will be relative to this file
 if not os.path.exists(QMC):
