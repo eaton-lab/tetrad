@@ -56,10 +56,10 @@ class Distributor:
         self.jobs = range(0, self.tet.params.nquartets, self.tet._chunksize)
 
         # print progress
-        self.printstr = "inferring full tree *"
+        self.printstr = "full tree *"        
         if self.boot:
             self.printstr = (
-                "bootstrap inference {}".format(self.tet._finished_boots + 1)
+                "boot rep. {}".format(self.tet._finished_boots + 1)
             )
 
 
@@ -124,7 +124,7 @@ class Distributor:
 
                 # update the message
                 prog.message = (
-                    "{} | mean SNPs/quartet: {:.0f}"
+                    "{} | avg SNPs/qrt: {:.0f}"
                     .format(self.printstr, meansnps)
                 )
                 prog.update()
@@ -292,7 +292,7 @@ class Distributor:
         proc = sps.Popen(cmd, stderr=sps.STDOUT, stdout=sps.PIPE)
         res = proc.communicate()
         if proc.returncode:
-            raise TetradError(res[1])
+            raise TetradError("error in QMC")  # res)
 
         # parse tmp file written by QMC into a tree and rename tips
         ttre = toytree.tree(self._tmp)
