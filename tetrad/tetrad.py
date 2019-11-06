@@ -488,7 +488,7 @@ class Tetrad(object):
             )
 
         # retain the same ipcluster info
-        self._ipcluster = oldcluster
+        self.ipcluster = oldcluster
 
 
     def _print(self, message):
