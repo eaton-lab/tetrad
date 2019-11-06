@@ -105,7 +105,7 @@ def nworker(tet, chunk):
             if nsnps[idx]:
                 bidx, invar = calculate(seqs, maparr, nmask, TESTS)
             else:
-                bidx = np.random.randint(3)
+                bidx = TESTS[np.random.randint(3)]
                 invar = np.zeros((16, 16), dtype=np.uint32)
 
             # store results
