@@ -12,11 +12,12 @@ import numpy as np
 import subprocess as sps
 
 from .utils import TetradError, ProgressBar
-from .worker import nworker
 from .jitted import resolve_ambigs, jshuffle_cols, jget_shape, jfill_boot
+from .worker import infer_resolved_quartets
 import toytree
 
 
+# TODO: MOVE THIS TO INIT?
 # If conda installed then the QMC binary should be in this conda env bin 
 PLATFORM = ("Linux" if "linux" in sys.platform else "Mac")
 BINARY = "find-cut-{}-64".format(PLATFORM)
@@ -92,7 +93,12 @@ class Distributor:
         # submit jobs distriuted across the cluster.
         asyncs = {}
         for job in self.jobs:
-            asyncs[job] = self.lbview.apply(nworker, *(self.tet, job))
+
+            # TODO: allow users to set subsample=False
+            args = (self.tet.files.idb, job, job + self.tet._chunksize, True)
+
+            # submit
+            asyncs[job] = self.lbview.apply(infer_resolved_quartets, *args)
 
         # init progress bar
         prog = ProgressBar(
@@ -114,17 +120,17 @@ class Distributor:
 
                 # store result and purge it
                 prog.finished += 1
-                rquart, rinvars, chunkavgsnps = rasync.get()
+                rquart, rinvars, rnsnps = rasync.get()
                 self.insert_to_hdf5(key, (rquart, rinvars))
                 del asyncs[key]
 
                 # calculate new average
-                avgsnps.append(chunkavgsnps)
+                avgsnps.extend(list(rnsnps))
                 meansnps = np.mean(avgsnps)
 
                 # update the message
                 prog.message = (
-                    "{} | avg SNPs/qrt: {:.0f}"
+                    "{} | mean SNPs/qrt: {:.0f}"
                     .format(self.printstr, meansnps)
                 )
                 prog.update()
