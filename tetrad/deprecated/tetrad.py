@@ -1,47 +1,19 @@
 #!/usr/bin/env python
 
-""" 
-SVD-quartet like tree inference. Modelled on the following papers:
+"""Quartet supertree inference tool.
 
-Chifman, J. and L. Kubatko. 2014. Quartet inference from SNP data under 
+References
+----------
+- Chifman, J. and L. Kubatko. 2014. Quartet inference from SNP data under 
 the coalescent, Bioinformatics, 30(23): 3317-3324.
 
-Chifman, J. and L. Kubatko. 2015. Identifiability of the unrooted species 
+- Chifman, J. and L. Kubatko. 2015. Identifiability of the unrooted species 
 tree topology under the coalescent model with time-reversible substitution 
 processes, site-specific rate variation, and invariable sites, Journal of 
 Theoretical Biology 374: 35-47
-"""
 
-# py2/3 compat
-from __future__ import print_function, division
-from builtins import range, str
-
-# standard lib
-import os
-import copy
-import itertools
-
-# third party
-import h5py
-import toytree
-import numpy as np
-from scipy.special import comb
-
-from .utils import TetradError, Params, Trees, Files
-from .jitted import resolve_ambigs, jget_spans
-from .parallel import Parallel
-from .distributor import Distributor
-
-
-"""
-TODO: 
-    - cleanup hdf5 and still able to restart from json by rebuilding arrs
-    - linkage samples scaff, dist, or None.
-    - 
-"""
-
-
-"""
+Notes
+-----
 Parallelization works by creating one sampled SNP data set (bootsarr)
 and distributing jobs to engines where each receives a list of quartet sets
 to run, and each reads in data from the bootsarr HDF array.
@@ -68,66 +40,88 @@ odb/
       - boot0, boot1, boot2, ...
 """
 
+from typing import Dict, Sequence, Optional
+import copy
+import itertools
+from pathlib import Path
+from dataclasses import dataclass
+
+# third party
+import h5py
+import toytree
+import numpy as np
+from scipy.special import comb
+
+from tetrad.utils import TetradError, Params, Trees, Files
+from tetrad.jitted import resolve_ambigs, jget_spans
+from tetrad.parallel import Parallel
+from tetrad.distributor import Distributor
 
 
-class Tetrad(object):
-    """
-    The main tetrad object for saving/loading data and checkpointing with JSON,
-    connecting to parallel client, and storing results for easy access.
+class Tetrad:
+    """Saving/loading data and results in JSON and connecting to parallel.
 
-    Params: 
-        name (str): 
-            A string to use as prefix for outputs.
+    Parameters
+    ----------
+    name: str 
+        A string to use as prefix for outputs.
+    data: str
+        Three options which contain SNPs and information about 
+        linkage of SNPs either from reference mapping or denovo assembly.
+        1. A .snps.hdf5 file from ipyrad.
+        2. A .vcf file produced by any software (CHROM is used as locus).
+        3. A tuple of a (.snps.hdf5, and .snpsmap) files from ipyrad.
+    nquartets: int
+        [optional] def=0=all, else user entered number to sample.
+    nboots: int
+        [optional, def=0] number of non-parametric bootstrap replicates.
+    resolve_ambigs: bool
+        [def=True] Whether to include and randomly resolve ambiguous 
+        IUPAC sites in each bootstrap replicate.
+    load: bool 
+        If True object is loaded from [workdir]/[name].json for continuing
+        from a checkpointed analyis.
+    quiet: bool
+        Suppress progressbar from being printed to stdout.
+    save_invariants: bool
+        Store invariants array to hdf5.
 
-        data (str): 
-            Three options which contain SNPs and information about 
-            linkage of SNPs either from reference mapping or denovo assembly.
-            1. A .snps.hdf5 file from ipyrad.
-            2. A .vcf file produced by any software (CHROM is used as locus).
-            3. A tuple of a (.snps.hdf5, and .snpsmap) files from ipyrad.
-
-        nquartets (int): 
-            [optional] def=0=all, else user entered number to sample.
-
-        nboots (int): 
-            [optional, def=0] number of non-parametric bootstrap replicates.
-
-        resolve_ambigs (bool): 
-            [def=True] Whether to include and randomly resolve ambiguous 
-            IUPAC sites in each bootstrap replicate.
-
-        load (bool): 
-            If True object is loaded from [workdir]/[name].json for continuing
-            from a checkpointed analyis.
-
-        quiet (bool): 
-            Suppress progressbar from being printed to stdout.
-
-        save_invariants (bool): 
-            Store invariants array to hdf5.
-
-    Functions:
-        run()
-
-    Attributes:
-        params: optional params can be set after object instantiation
-        trees: access trees from object after analysis is finished
-        samples: names of samples in the data set
+    Attributes
+    ----------
+    params: 
+        optional params can be set after object instantiation
+    trees: 
+        access trees from object after analysis is finished
+    samples: 
+        names of samples in the data set
     """
     def __init__(
         self,
-        name, 
-        data=None,
-        workdir="analysis-tetrad",
-        nquartets=0, 
-        nboots=0,
-        save_invariants=False,
-        seed=None,
-        load=False,        
-        *args, 
-        **kwargs):
+        name: str,
+        data: str,
+        workdir: str = "analysis-tetrad",
+        nquartets: int = 0, 
+        nboots: int = 0,
+        save_invariants: bool = False,
+        imap: Dict[str,Sequence[str]] = None,
+        seed: Optional[int] = None,
+        load: bool = False,
+        **kwargs,
+        ):
 
-        # random seed 
+        # store input args
+        self.name = name
+        self.data = data
+        self.workdir = workdir
+        self.nquartets = nquartets
+        self.nboots = nboots
+        self.save_invariants = save_invariants
+        self.imap = imap
+        self.seed = seed
+        self.load = load
+
+        # extra attrs
+
         np.random.seed(seed)
 
         # check additional (hidden) arguments from kwargs.
@@ -142,6 +136,7 @@ class Tetrad(object):
 
         # name, sample, and workdir
         self.name = name
+        self.imap = imap
         self.samples = []
         self.dirs = os.path.abspath(os.path.expanduser(workdir))
         if not os.path.exists(self.dirs):
@@ -170,7 +165,8 @@ class Tetrad(object):
         self.files.idb = os.path.join(self.dirs, self.name + ".input.hdf5")
         self.files.odb = os.path.join(self.dirs, self.name + ".output.hdf5")
 
-        # load arrays, files, samples from data or existing analysis 
+        # load arrays, files, samples from data or existing analysis.
+        # TODO: this may need updating after adding .isamples and .vsamples
         if load:
             self._load_file_paths()  # (self.name, self.dirs)
         else:
@@ -259,8 +255,8 @@ class Tetrad(object):
         Depending on the quartet sampling method selected the number of 
         quartets that must be sampled will be calculated, or error raised.
         """
-        total = int(comb(len(self.samples), 4))
-        rough = int(len(self.samples) ** 2.8)
+        total = int(comb(len(self.isamples), 4))
+        rough = int(len(self.isamples) ** 2.8)
 
         if not self.params.nquartets:
             if rough >= total:
@@ -272,7 +268,7 @@ class Tetrad(object):
             else:
                 self.params.nquartets = rough
                 self._print(
-                    "quartet sampler [random, nsamples**2.8]: {} / {}"
+                    "quartet sampler [random, ntips**2.8]: {} / {}"
                     .format(self.params.nquartets, total)
                 )
                 self._fullsampled = False
@@ -322,6 +318,7 @@ class Tetrad(object):
 
     def _init_seqarray(self, quiet=True):
         """ 
+        Subset samples from IMAP. If no imap then imap matches samples as dict.
         Fills the seqarr with the full SNP data set while keeping memory 
         requirements super low, and creates a bootsarr copy with the 
         following modifications:
@@ -333,12 +330,25 @@ class Tetrad(object):
         # get data shape from io5 input file       
         assert ".snps.hdf5" in self.files.data, "data file is not .snps.hdf5"
         io5 = h5py.File(self.files.data, 'r')
+        
+        # get names from HDF5
         names = [i.decode() for i in io5["snps"].attrs["names"]]
+
+        # group sample names into imap if not already
+        if not self.imap:
+            self.imap = {i: [i] for i in names}
+
+        # all names in db, all keys in study, all names in study, sidx map
         self.samples = names
+        self.isamples = sorted(self.imap.keys())
+        self.vsamples = sorted(itertools.chain(*self.imap.values()))
+
+        # log to user
         ntaxa = len(names)
         nsnps = io5["snps"].shape[1]
         self._print(
-            "loading snps array [{} taxa x {} snps]".format(ntaxa, nsnps))
+            "loading snps array [{} samples, {} tips x {} snps]"
+            .format(len(self.vsamples), len(self.isamples), nsnps))
 
         # data base file to write the transformed array to
         idb = h5py.File(self.files.idb, 'w')
@@ -355,21 +365,29 @@ class Tetrad(object):
         idb.create_dataset("spans", (nloci, 2), dtype=np.int64)
         idb["spans"][:] = jget_spans(snpsmap[:, :2])
 
-        # store snps info
-        idb.create_dataset("seqarr", (ntaxa, nsnps), dtype=np.uint8)
-        tmpseq = io5["snps"][:].astype(np.uint8)
+        # store snps info. Subset to only samples in imap if imap.
+        idb.create_dataset("seqarr", (len(self.vsamples), nsnps), dtype=np.uint8)       
+        sidxs = sorted([self.samples.index(i) for i in self.vsamples])
+        tmpseq = io5["snps"][sidxs].astype(np.uint8)
         tmpseq[tmpseq == 45] = 78
         tmpseq[tmpseq == 95] = 78
         idb["seqarr"][:] = tmpseq
 
         # boot samples: resolve ambigs and convert CATG bases to matrix indices
-        idb.create_dataset("bootsarr", (ntaxa, nsnps), dtype=np.uint8)
-        tmpseq = resolve_ambigs(tmpseq)       
+        idb.create_dataset("bootsarr", (len(self.imap), nsnps), dtype=np.uint8)
+        tmpseq = resolve_ambigs(tmpseq)
         tmpseq[tmpseq == 65] = 0
         tmpseq[tmpseq == 67] = 1
         tmpseq[tmpseq == 71] = 2
         tmpseq[tmpseq == 84] = 3
-        idb["bootsarr"][:] = tmpseq
+
+        # sample one sample (sidx) per imap group
+        self.iidxs = {
+            i: [self.vsamples.index(s) for s in v]
+            for (i, v) in self.imap.items()
+        }
+        idxs = [np.random.choice(self.iidxs[i]) for i in self.isamples]
+        idb["bootsarr"][:] = tmpseq[idxs]
 
         # report 
         self._print(
@@ -608,7 +626,7 @@ def store_all(self):
         fillsets = io5["quartets"]
 
         # generator for all quartet sets
-        qiter = itertools.combinations(range(len(self.samples)), 4)
+        qiter = itertools.combinations(range(len(self.isamples)), 4)
 
         # fill by chunksize at a time
         i = 0
@@ -637,8 +655,8 @@ def store_random(self):
         fillsets = io5["quartets"]
 
         # set generators
-        qiter = itertools.combinations(range(len(self.samples)), 4)
-        rand = np.arange(0, int(comb(len(self.samples), 4)))
+        qiter = itertools.combinations(range(len(self.isamples)), 4)
+        rand = np.arange(0, int(comb(len(self.isamples), 4)))
 
         # this is where the seed fixes random sampling
         np.random.shuffle(rand)

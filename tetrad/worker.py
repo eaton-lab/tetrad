@@ -1,38 +1,68 @@
 #!/usr/bin/env python
 
-""" 
-Wrap methods around jitted funcs to run single threaded. 
+"""Process SNP data for quartets.
 
-Uses code from this great source:
-https://www.kaggle.com/sggpls/singlethreaded-instantgratification
+Extracts sequence data given indices (0, 1, 2, 3) and returns the 
+resolved quartet relationship, ordered as 03|14 -> (0, 3, 1, 4).
 """
 
+from pathlib import Path
 import h5py
 import numpy as np
 from numba import njit
 
-# from .utils import TESTS
-# from .jitted import calculate
-# from .threading import single_threaded
+TIDXS = np.array([
+    [0, 1, 2, 3], 
+    [0, 2, 1, 3], 
+    [0, 3, 1, 2]], dtype=np.uint8,
+)
+TESTS = np.array([0, 1, 2])
 
 
+# pylint: disable=invalid-name
+
+
+def infer_resolved_quartets(
+    database: Path,
+    quartets: np.ndarray,
+    subsample_snps: bool = True,
+    ) -> np.ndarray:
+    """Return a chunk of resolved quartets in a matrix.
+
+    Loads the data from disk and feeds to jit functions. Loading from
+    disk is useful here for highly distributed processes, e.g., using
+    MPI, and is simpler than trying to memmap stuff, though at the 
+    cost of higher memory load.
+    """
+    # open in single-writer multiple reader mode.
+    with h5py.File(database, 'r', swmr=True) as io5:
+        tmparr = io5["tmparr"][:]
+        tmpmap = io5["tmpmap"][:]
+    return jit_infer_resolved_quartets(tmparr, tmpmap, quartets, subsample_snps)
 
 @njit
-def sub_chunk_to_matrices(narr, mapcol, mask):
+def subsample_chunk_to_matrices(
+    tmparr: np.ndarray,
+    tmpmap: np.ndarray,
+    mask: np.ndarray,
+    ) -> np.ndarray:
+    """Count ALL unmasked site patterns and return as site count matrix.
+    
+    This func DOES filter using tmpmap based on linkage, i.e., 
+    SNPs on the same locus will be counted rather than thinned. See
+    sub_chunk_to_matrices for sampling one SNP per locus.
     """
-    Subsample a single SNP per locus and skip masked sites.
-    """
-
+    # highest occurrence of a site pattern allowed is 4_294_967_295
     mats = np.zeros((3, 16, 16), dtype=np.uint32)
 
     # fill the first mat
     last_loc = np.uint32(-1)
-    for idx in range(mapcol.shape[0]):
+    for idx in range(tmpmap.shape[0]):
         if not mask[idx]:
-            if not mapcol[idx] == last_loc:
-                i = narr[:, idx]
+            if not tmpmap[idx] == last_loc:
+                i = tmparr[:, idx]
                 mats[0, (4 * i[0]) + i[1], (4 * i[2]) + i[3]] += 1      
-                last_loc = mapcol[idx]
+                last_loc = tmpmap[idx]
 
     # fill the alternates
     x = np.uint8(0)
@@ -41,22 +71,27 @@ def sub_chunk_to_matrices(narr, mapcol, mask):
             mats[1, y:y + np.uint8(4), z:z + np.uint8(4)] = mats[0, x].reshape(4, 4)
             mats[2, y:y + np.uint8(4), z:z + np.uint8(4)] = mats[0, x].reshape(4, 4).T
             x += np.uint8(1)
-
     return mats
 
-
 @njit
-def full_chunk_to_matrices(narr, mapcol, mask):
+def full_chunk_to_matrices(
+    tmparr: np.ndarray,
+    tmpmap: np.ndarray,
+    mask: np.ndarray,
+    ) -> np.ndarray:
+    """Count ALL unmasked site patterns and return as site count matrix.
+    
+    This func does not filter using tmpmap based on linkage, i.e., 
+    SNPs on the same locus will be counted rather than thinned. See
+    sub_chunk_to_matrices for sampling one SNP per locus.
     """
-    Count ALL SNPs but skip masked sites.
-    """
-
+    # highest occurrence of a site pattern allowed is 4_294_967_295
     mats = np.zeros((3, 16, 16), dtype=np.uint32)
 
     # fill the first mat
-    for idx in range(mapcol.shape[0]):
+    for idx in range(tmpmap.shape[0]):
         if not mask[idx]:
-            i = narr[:, idx]
+            i = tmparr[:, idx]
             mats[0, (4 * i[0]) + i[1], (4 * i[2]) + i[3]] += 1      
 
     # fill the alternates
@@ -66,65 +101,51 @@ def full_chunk_to_matrices(narr, mapcol, mask):
             mats[1, y:y + np.uint8(4), z:z + np.uint8(4)] = mats[0, x].reshape(4, 4)
             mats[2, y:y + np.uint8(4), z:z + np.uint8(4)] = mats[0, x].reshape(4, 4).T
             x += np.uint8(1)
-
     return mats
 
+# @njit
+def jit_infer_resolved_quartets(
+    tmparr: np.ndarray,
+    tmpmap: np.ndarray,
+    quartets: np.ndarray,
+    subsample_snps: bool,
+    ):
+    """jit-compiled code for infer_resolved_quartets"""
+    # result matrices to fill
+    rnsnps = np.zeros(quartets.shape[0])
+    results = quartets.copy()
+    results[:] = 0
 
+    # track and return scores while debugging
+    scores = np.zeros(quartets.shape[0])
 
-#@njit
-def infer_resolved_quartets(idb, start, end, subsample):
-    """
-    Takes a chunk of quartet sets and returns the inferred quartet along
-    with the invariants array and SNPs per quartet.
-    """
-    # open seqarray view, the modified arr is in bootstarr
-    with h5py.File(idb, 'r') as io5:
-        seqview = io5["bootsarr"][:]
-        maparr = io5["bootsmap"][:]
-        smps = io5["quartets"][start:end]
+    for qidx in range(quartets.shape[0]):
+        # get sample indices for this quartet (0, 1, 2, 3)
+        sidx = quartets[qidx]
+        # get sequence array rows for just these four samples
+        seqs = tmparr[sidx, :]
+        # mask sites with missing values (78) among these four samples
+        # numba doesn't support 'any' over axes, so we use sum which is
+        # a bit slower, but faster in the context of keeping all jitted.
+        nmask0 = np.sum(seqs >= 78, axis=0)
+        # mask sites that are invariant among these four samples
+        nmask1 = np.sum(seqs == seqs[0], axis=0) == 4
+        # count SNP patterns and shape into 3x16x16 matrix.
+        if subsample_snps:
+            cmats = subsample_chunk_to_matrices(seqs, tmpmap[:, 0], nmask0 + nmask1)
+        else:
+            cmats = full_chunk_to_matrices(seqs, tmpmap[:, 0], nmask0 + nmask1)
 
-    # select function based on subsample bool
-    if subsample:
-        count_matrix = sub_chunk_to_matrices
-    else:
-        count_matrix = full_chunk_to_matrices
-
-    # the three indexed resolutions of each quartet
-    TIDXS = np.array([
-        [0, 1, 2, 3], 
-        [0, 2, 1, 3], 
-        [0, 3, 1, 2]], dtype=np.uint8,
-    )
-    TESTS = np.array([0, 1, 2])
-
-    # mats to fill
-    rquartets = np.zeros((smps.shape[0], 4), dtype=np.uint16)
-    rinvariants = np.zeros((smps.shape[0], 16, 16), dtype=np.uint16)
-    rnsnps = np.zeros(smps.shape[0])
-
-    # iterate over quartet sets
-    for idx in range(smps.shape[0]):
-
-        # get quartet
-        sidx = smps[idx]
-
-        # get seqs of this quartet
-        seqs = seqview[sidx]
-
-        # mask sites with missing
-        sums = np.sum(seqs, axis=0)
-        nmask = sums > 70
-
-        # mask invariant sites
-        nmask += np.sum(seqs == seqs[0], axis=0) == 4    
-
-        # count SNPs into 3x16x16 arrays
-        cmats = count_matrix(seqs, maparr[:, 0], nmask)
-
-        # skip if seqs is empty
+        # find the best resolution of subtree based on matrices
         nsnps = cmats[0].sum()
+
+        # no data, ...
+        # FIXME: is random return better than exclusions?? needs testing.
         if not nsnps:
-            qorder = TIDXS[np.random.randint(3)]        
+            qorder = TIDXS[np.random.randint(3)]
+            scores[qidx] = 1 / 3
+
+        # data is present, find solution.
         else:
             # empty arrs to fill
             svds = np.zeros((3, 16), dtype=np.float64)
@@ -142,128 +163,33 @@ def infer_resolved_quartets(idb, start, end, subsample):
                 scor[test] = np.sqrt(np.sum(svds[test, minrank:]**2))
 
             # sort to find the best qorder
-            qorder = TIDXS[np.argmin(scor)]
+            bidx = np.argmin(scor)
+            qorder = TIDXS[bidx]
+
+            # score can be weighted in two ways: 
+            # 1. How much better is best matrix (relative weight of matrix 1)
+            # 2. How symmetric are the other two (D-statistic)
+            scores[qidx] = 1 - (scor[bidx] / scor.sum())
 
         # store results
-        rquartets[idx] = sidx[qorder]
-        rinvariants[idx] = cmats[0]
-        rnsnps[idx] = nsnps
-
-    return rquartets, rinvariants, rnsnps
+        results[qidx] = sidx[qorder]
+        rnsnps[qidx] = nsnps
+    return results, rnsnps, scores
 
 
 
 
 
+if __name__ == "__main__":
 
-
-
-
-
-
-
-
-
-
-
-# def nworker(tet, chunk):
-#     """
-#     Worker to distribute work to jit funcs. Wraps everything on an 
-#     engine to run single-threaded to maximize efficiency for 
-#     multi-processing.
-#     """
-#     # set the thread limit on the remote engine to 1 for multiprocessing
-#     # oldlimit = set_thread_limit(1)
-
-#     # single thread limit
-#     with single_threaded(np):
-
-#         # open seqarray view, the modified arr is in bootstarr
-#         with h5py.File(tet.files.idb, 'r') as io5:
-#             seqview = io5["bootsarr"][:]
-#             maparr = io5["bootsmap"][:, 0]
-#             smps = io5["quartets"][chunk:chunk + tet._chunksize]
-
-#             # create an N-mask array of all seq cols
-#             nall_mask = seqview[:] == 78
-
-#         # init arrays to fill with results
-#         rquartets = np.zeros((smps.shape[0], 4), dtype=np.uint16)
-#         rinvariants = np.zeros((smps.shape[0], 16, 16), dtype=np.uint16)
-#         nsnps = np.zeros(smps.shape[0])
-
-#         # TODO: test again numbafying the loop below, but on a super large 
-#         # matrix. Maybe two strategies should be used for different sized 
-#         # problems... LOL at this and the note below.
-
-#         # fill arrays with results as we compute them. This iterates
-#         # over all of the quartet sets in this sample chunk. It would
-#         # be nice to have this all numbified (STOP TRYING...)
-#         for idx in range(smps.shape[0]):
-#             sidx = smps[idx]
-#             seqs = seqview[sidx]
-
-#             # these axis calls cannot be numbafied, but I can't 
-#             # find a faster way that is JIT compiled, and I've
-#             # really, really, really tried. Tried again now that
-#             # numba supports axis args for np.sum. Still can't 
-#             # get speed improvements by numbifying this loop.
-#             # tried guvectorize too...
-#             nmask = np.any(nall_mask[sidx], axis=0)
-#             nmask += np.all(seqs == seqs[0], axis=0) 
-
-#             # skip calc and choose a random matrix if no SNPs
-#             nsnps[idx] = seqs[:, np.invert(nmask)].shape[1]
-
-#             # here are the jitted funcs
-#             if nsnps[idx]:
-#                 bidx, invar = calculate(seqs, maparr, nmask, TESTS)
-#             else:
-#                 bidx = TESTS[np.random.randint(3)]
-#                 invar = np.zeros((16, 16), dtype=np.uint32)
-
-#             # store results
-#             rquartets[idx] = sidx[bidx]
-#             rinvariants[idx] = invar
-
-#         # old thread limit restored on closed context
-
-#     # return results...
-#     return rquartets, rinvariants, nsnps.mean()
-
-
-
-
-# # currently deprecated !!!!!!!!!!!!!
-# def worker(tet, chunk):
-
-#     # open seqarray view, the modified arr is in bootstarr
-#     with h5py.File(tet.files.idb, 'r') as io5:
-#         seqview = io5["bootsarr"][:]
-#         maparr = io5["bootsmap"][:, :0]
-#         smps = io5["quartets"][chunk:chunk + tet._chunksize]
-
-#         # create an N-mask array of all seq cols
-#         nall_mask = seqview[:] == 78
-
-#     # init arrays to fill with results
-#     rquartets = np.zeros((smps.shape[0], 4), dtype=np.uint16)
-#     rinvariants = np.zeros((smps.shape[0], 16, 16), dtype=np.uint16)
-
-#     # fill arrays with results as we compute them. 
-#     for idx in range(smps.shape[0]):
-#         sidx = smps[idx]
-#         seqs = seqview[sidx]
-#         nmask = nall_mask[sidx]
-
-#         # mask invariant or contains missing
-#         mask0 = np.any(nmask, axis=0)
-#         mask1 = np.all(seqs == seqs[0], axis=0)
-#         mapmask = np.invert(mask0 | mask1)
-
-#         # here are the jitted funcs
-#         bidx, invar = calculate(seqs, maparr, mapmask, TESTS)
-
-#         # store results
-#         rquartets[idx] = smps[idx][bidx]
-#         rinvariants[idx] = invar        
+    import tetrad
+    import toytree
+    TRE = toytree.rtree.unittree(20, treeheight=5e6, seed=123)
+    toytree.utils.show(TRE.draw(layout='unroot')[0])
+    DATA = Path("/tmp/test.snps.hdf5")
+    TET = tetrad.Tetrad(name='test', workdir="/tmp", data=str(DATA), nquartets=0)
+    
+    cidx, qrts = next(TET.iter_quartet_chunks())
+    rqrts, rnsnps = infer_resolved_quartets(TET.files.database, qrts)
+    for i, j in zip(qrts, rqrts):
+        print(i, j)

@@ -2,7 +2,7 @@
 
 """ the main CLI for calling tetrad """
 
-from __future__ import print_function, division
+# from __future__ import print_function, division
 
 import os
 import sys
@@ -10,9 +10,9 @@ import argparse
 import ipyparallel as ipp
 from pkg_resources import get_distribution
 
-from .tetrad import Tetrad
-from .utils import TetradError
-from .parallel import detect_cpus
+# from .tetrad import Tetrad
+# from .utils import TetradError
+# from .parallel import detect_cpus
 
 
 __interactive__ = 1

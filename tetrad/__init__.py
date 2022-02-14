@@ -1,17 +1,29 @@
 #!/usr/bin/env python
 
-from .tetrad import Tetrad as tetrad
+"""Tetrad quartet supertree inference tool.
 
-# dunders mifflin
-__version__ = "0.9.14"
+Change log
+==========
+
+1.0
+---
+- dropped support for Python<3.7
+- require ipyparallel>=7.0
+- require toytree>3.0
+- require typer
+
+TODO
+-----
+- insert a test here to check MKL and OPENBLAS...
+- clone vcf convert from ipyrad
+- add linkage option to CLI
+- speed up converter using numba
+"""
+
+__version__ = "1.0.0"
 __author__ = "Deren Eaton"
 __interactive__ = 1
 
-
-"""
-TODO: 
-    - insert a test here to check MKL and OPENBLAS...
-    - clone vcf convert from ipyrad
-    - add linkage option to CLI
-    - speed up converter using numba
-"""
+from tetrad.core import Tetrad
+from tetrad.logger_setup import set_log_level
+set_log_level("INFO")
