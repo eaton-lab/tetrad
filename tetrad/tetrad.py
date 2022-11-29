@@ -316,7 +316,10 @@ class Tetrad(object):
         # reloading info from hdf5
         assert ".snps.hdf5" in self.files.data, "data file is not .snps.hdf5"
         io5 = h5py.File(self.files.data, 'r')
-        names = [i.decode() for i in io5["snps"].attrs["names"]]
+        try:
+            names = [i.decode() for i in io5["snps"].attrs["names"]]
+        except AttributeError:
+            names = [i for i in io5["snps"].attrs["names"]]
         self.samples = names
 
 
@@ -333,7 +336,10 @@ class Tetrad(object):
         # get data shape from io5 input file       
         assert ".snps.hdf5" in self.files.data, "data file is not .snps.hdf5"
         io5 = h5py.File(self.files.data, 'r')
-        names = [i.decode() for i in io5["snps"].attrs["names"]]
+        try:
+            names = [i.decode() for i in io5["snps"].attrs["names"]]
+        except AttributeError:
+            names = [i for i in io5["snps"].attrs["names"]]
         self.samples = names
         ntaxa = len(names)
         nsnps = io5["snps"].shape[1]
