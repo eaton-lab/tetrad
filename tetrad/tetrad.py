@@ -214,7 +214,10 @@ class Tetrad(object):
         0 finished boots does not mean 0 finished full trees.
         """
         # is the full tree finished?
-        self._finished_full = toytree.tree(self.trees.tree).ntips > 1
+        if not os.path.exists(self.trees.tree):
+            self._finished_full = False
+        else:
+            self._finished_full = toytree.tree(self.trees.tree).ntips > 1
 
         # override to make always True if bootsonly
         if self._boots_only:
