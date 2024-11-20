@@ -224,14 +224,17 @@ class Tetrad(object):
             self._finished_full = True
 
         # how many boots are finished?
-        tmp = toytree.mtree(self.trees.boots)
-        if tmp.ntrees > 1:
-            self._finished_boots = tmp.ntrees 
+        if not os.path.exists(self.trees.boots):
+            self._finished_boots = 0
         else:
-            if tmp.treelist[0].ntips > 1:
-                self._finished_boots = 1
+            tmp = toytree.mtree(self.trees.boots)
+            if tmp.ntrees > 1:
+                self._finished_boots = tmp.ntrees 
             else:
-                self._finished_boots = 0
+                if tmp.treelist[0].ntips > 1:
+                    self._finished_boots = 1
+                else:
+                    self._finished_boots = 0
 
 
     def _check_file_handles(self):
