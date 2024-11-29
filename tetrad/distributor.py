@@ -82,7 +82,6 @@ class Distributor:
         """
         Run nworker() on remote engines. 
         """
-
         # if writing to a log file (e.g., HPC) then make progbar intervals large
         intv = 0
         # if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
@@ -288,11 +287,7 @@ class Distributor:
         """
         # build command
         self._tmp = os.path.join(self.tet.dirs, ".tmptre")
-        cmd = [
-            QMC, 
-            "qrtt={}".format(self.tet.files.qdump),
-            "otre={}".format(self._tmp),
-        ]
+        cmd = [QMC, f"qrtt={self.tet.files.qdump}", f"otre={self._tmp}"]
 
         # run QMC on quartets input
         proc = sps.Popen(cmd, stderr=sps.STDOUT, stdout=sps.PIPE)
@@ -306,7 +301,7 @@ class Distributor:
             tip.name = self.tet.samples[int(tip.name)]
 
         # convert to newick
-        newick = ttre.write(tree_format=9)      
+        newick = ttre.write()#tree_format=9)
 
         # save the tree to file
         if self.boot:
