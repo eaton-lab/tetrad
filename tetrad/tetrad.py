@@ -594,9 +594,9 @@ class Tetrad(object):
 
             # write the bootstrap supports onto the original tree
             if not self._boots_only:
-                best = toytree.tree(self.trees.tree)
-                btre = mtre.get_consensus_tree(best_tree=best)
-                btre.write(self.trees.tree)
+                full_tree = toytree.tree(self.trees.tree)
+                full_tree_supports = mtre.get_consensus_features(full_tree)
+                full_tree_supports.write(self.trees.tree)
 
         # cleanup
         ipyclient.purge_everything()
