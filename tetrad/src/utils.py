@@ -2,13 +2,6 @@
 
 """Utilities for tetrad.
 
-Helper classes for tetrad based on similar utils in ipyrad"
-
-Logger for development and user warnings.
-
-All toytree modules that use logging use a 'bound' logger that will
-be filtered here to only show for toytree and not for other Python
-packages.
 """
 
 import sys
@@ -16,9 +9,6 @@ import subprocess
 from pathlib import Path
 import numpy as np
 
-class TetradError(Exception):
-    def __init__(self, *args, **kwargs):
-        Exception.__init__(self, *args, **kwargs)
 
 # used by resolve_ambigs
 GETCONS = np.array([
@@ -29,6 +19,18 @@ GETCONS = np.array([
     [87, 84, 65],
     [77, 67, 65]], dtype=np.uint8,
 )
+
+
+def make_wide(formatter, w=120, h=36):
+    """Return a wider HelpFormatter, if possible."""
+    try:
+        # https://stackoverflow.com/a/5464440
+        # beware: "Only the name of this class is considered a public API."
+        kwargs = {'width': w, 'max_help_position': h}
+        formatter(None, **kwargs)
+        return lambda prog: formatter(prog, **kwargs)
+    except TypeError:
+        return formatter
 
 
 def get_qmc_binary() -> Path:
@@ -50,8 +52,9 @@ def get_qmc_binary() -> Path:
         ) as proc:
         res = proc.communicate()[0]
         if not res:
-            raise TetradError(f"No QMC binary found: {qmc}")
+            raise IOError(f"No QMC binary found: {qmc}")
     return qmc
+
 
 if __name__ == "__main__":
     print(get_qmc_binary())

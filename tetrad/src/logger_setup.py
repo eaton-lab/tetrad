@@ -12,9 +12,10 @@ from loguru import logger
 
 
 LOGFORMAT = (
-    "{level.icon} " 
+    # "{level.icon} " 
     # "<level>{level: <7}</level> <white>|</white> "
-    "<cyan>{file}</cyan> <white>|</white> "
+    "{time:hh:mm} <level>{level: <7}</level> <white>|</white> "
+    "<cyan>{file: <16}</cyan> <white>|</white> "
     "<level>{message}</level>"
 )
 
@@ -55,11 +56,11 @@ def set_log_level(log_level="INFO"):
         level=log_level,
         colorize=colorize(),
         format=LOGFORMAT,
-        filter=lambda x: x['extra'].get("name") == "tetrad",
+        # filter=lambda x: x['extra'].get("name") == "tetrad",
     )
     LOGGERS.append(idx)
-    logger.enable("tetrad")
-    logger.bind(name="tetrad").debug("tetrad logging enabled")
+    # logger.enable("tetrad")
+    # logger.bind(name="tetrad").debug("tetrad logging enabled")
 
 if __name__ == "__main__":
     set_log_level("DEBUG")

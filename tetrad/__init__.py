@@ -22,8 +22,8 @@ TODO
 
 __version__ = "1.0.0"
 __author__ = "Deren Eaton"
-__interactive__ = 1
 
-from tetrad.core import Tetrad
-from tetrad.logger_setup import set_log_level
-set_log_level("INFO")
+
+# from tetrad.core import Tetrad
+# from tetrad.logger_setup import set_log_level
+# set_log_level("INFO")
