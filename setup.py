@@ -48,6 +48,7 @@ setup(
         "h5py>=3.0",
         "toytree>=3.0",
         "ipyparallel>=7.0",
+        "pydantic",
     ],
     entry_points={'console_scripts': ['tetrad = tetrad.src.cli:main']},
     data_files=[('bin', glob.glob("./bin/*"))],
