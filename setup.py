@@ -1,9 +1,21 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+"""Setup instructions.
+
+Install superbpp using conda with the command:
+    conda install tetrad -c conda-forge -c bioconda
+
+For developers:
+    git clone https://github.com/eaton-lab/tetrad
+    cd ./tetrad
+    conda env create -f environment.yml
+    conda activate dev
+    pip install -e . --no-deps
+"""
+
 import glob
 import re
-
+from setuptools import setup
 
 # Auto-update ipyrad version from git repo tag
 # Fetch version from git tags, and write to version.py.
@@ -19,32 +31,29 @@ CUR_VERSION = (
 
 setup(
     name="tetrad",
+    packages=["tetrad"],
     version=CUR_VERSION,
     url="https://github.com/eaton-lab/tetrad",
     author="Deren Eaton",
     author_email="de2356@columbia.edu",
-    description="Quartet inference using phylogenetic invariants",
+    description="Quartet supertree inference using phylogenetic invariants",
     long_description=open('README.rst').read(),
     long_description_content_type='text/x-rst',
-    packages=find_packages(),
+    # packages=find_packages(),
     install_requires=[
-        "future",
-        "ipyparallel",
         "scipy",
         "numpy",
         "numba",
         "pandas",
-        "h5py",
-        "toytree",
-        # "mpi4py",
-        # "mkl",
+        "h5py>=3.0",
+        "toytree>=3.0",
+        "ipyparallel>=7.0",
     ],
-    entry_points={'console_scripts': ['tetrad = tetrad.__main__:main']},
+    # entry_points={'console_scripts': ['tetrad = tetrad.__main__:main']},
     data_files=[('bin', glob.glob("./bin/*"))],
     license='GPLv3',
     classifiers=[
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',

@@ -154,8 +154,11 @@ class Distributor:
         """
         with h5py.File(self.tet.files.idb, 'r+') as io5:
 
+            # subsample for imap
+            idxs = [np.random.choice(self.tet.iidxs[i]) for i in self.tet.isamples]
+
             # load the original data (seqarr and spans)
-            snps = io5["seqarr"][:]
+            snps = io5["seqarr"][:][idxs]
             spans = io5["spans"][:]
 
             # get size of the new locus re-sampled array
@@ -189,34 +192,40 @@ class Distributor:
             # print("resampled bootsmap \n %s", io5["bootsmap"][:10, :])
 
 
-    def sample_bootseq_array(self):
-        """
-        Takes the seqarray and re-samples columns and saves to bootsarr.
-        """
-        with h5py.File(self.tet.database.input, 'r+') as io5:  
 
-            ## load in the seqarr and maparr
-            seqarr = io5["seqarr"][:]
+        # sample one sample (sidx) per imap group
+        # idb["bootsarr"][:] = tmpseq[idxs]
 
-            ## resample columns with replacement
-            newarr = np.zeros(seqarr.shape, dtype=np.uint8)
-            cols = np.random.randint(0, seqarr.shape[1], seqarr.shape[1])
-            tmpseq = jshuffle_cols(seqarr, newarr, cols)
 
-            ## resolve ambiguous bases randomly. We do this each time so that
-            ## we get different resolutions.
-            if self.tet.params.resolve_ambigs:
-                tmpseq = resolve_ambigs(tmpseq)
 
-            ## convert CATG bases to matrix indices
-            tmpseq[tmpseq == 65] = 0
-            tmpseq[tmpseq == 67] = 1
-            tmpseq[tmpseq == 71] = 2
-            tmpseq[tmpseq == 84] = 3
+    # def sample_bootseq_array(self):
+    #     """
+    #     Takes the seqarray and re-samples columns and saves to bootsarr.
+    #     """
+    #     with h5py.File(self.tet.database.input, 'r+') as io5:  
 
-            ## fill the boot array with a re-sampled phy w/ replacement
-            io5["bootsarr"][:] = tmpseq
-            del tmpseq    
+    #         ## load in the seqarr and maparr
+    #         seqarr = io5["seqarr"][:]
+
+    #         ## resample columns with replacement
+    #         newarr = np.zeros(seqarr.shape, dtype=np.uint8)
+    #         cols = np.random.randint(0, seqarr.shape[1], seqarr.shape[1])
+    #         tmpseq = jshuffle_cols(seqarr, newarr, cols)
+
+    #         ## resolve ambiguous bases randomly. We do this each time so that
+    #         ## we get different resolutions.
+    #         if self.tet.params.resolve_ambigs:
+    #             tmpseq = resolve_ambigs(tmpseq)
+
+    #         ## convert CATG bases to matrix indices
+    #         tmpseq[tmpseq == 65] = 0
+    #         tmpseq[tmpseq == 67] = 1
+    #         tmpseq[tmpseq == 71] = 2
+    #         tmpseq[tmpseq == 84] = 3
+
+    #         ## fill the boot array with a re-sampled phy w/ replacement
+    #         io5["bootsarr"][:] = tmpseq
+    #         del tmpseq    
 
 
     def insert_to_hdf5(self, chunk, results):
@@ -298,7 +307,7 @@ class Distributor:
         # parse tmp file written by QMC into a tree and rename tips
         ttre = toytree.tree(self._tmp)
         for tip in ttre.treenode.get_leaves():
-            tip.name = self.tet.samples[int(tip.name)]
+            tip.name = self.tet.isamples[int(tip.name)]
 
         # convert to newick
         newick = ttre.write()#tree_format=9)
