@@ -5,6 +5,17 @@
 This is the main analysis module. It starts a cluster connection and
 wraps the processing, loads the Projects, samples quartets, processes
 them remotely, and writes the results.
+
+The results file is a tab-delimited format with columns:
+0. qrt taxon 0
+1. qrt taxon 1
+2. qrt taxon 2
+3. qrt taxon 3
+4. SVD score for resolution 0 (12|23)
+5. SVD score for resolution 1 (13|24)
+6. SVD score for resolution 2 (14|23)
+7. quartet resolution index (0, 1, or 2)
+8. nsnps 
 """
 
 import sys

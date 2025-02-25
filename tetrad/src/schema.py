@@ -118,9 +118,10 @@ class Project(BaseModel):
 
 if __name__ == "__main__":
     
+    import tetrad
 
     proj = Project(
-        version="0.1",
+        version=tetrad.__version__,
         data="./data.vcf",
         name="TEST",
         workdir="/tmp",

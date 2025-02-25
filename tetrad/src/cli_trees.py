@@ -52,15 +52,34 @@ def get_parser_trees(parser: ArgumentParser | None = None, data: Path = None) ->
         parser = ArgumentParser(**KWARGS)
 
     # add arguments
-    parser.add_argument("data", type=Path, default=data, help="A VCF or SNPS.HDF5 file")
+    parser.add_argument("json", type=Path, help="A project JSON file")
 
     # advanced plotting
-    parser.add_argument("-n", "--name", type=str, metavar="str", help="name prefix for output files.")
-    parser.add_argument("-w", "--workdir", type=Path, metavar="path", default=".", help="working directory path.")
-    # parser.add_argument("-i", "--imap", type=Path, metavar="path", help="optional: map of sample names to species.")
-    parser.add_argument("-q", "--nquartets", type=float, metavar="int", default=0, help="optional: number of quartets to sample.")
-    parser.add_argument("-r", "--random-seed", type=int, metavar="int", help="optional: random number generator seed.")
-    parser.add_argument("-s", "--subsample-snps", action="store_true", help="optional: sample unlinked SNPs (1 per locus).")
-    parser.add_argument("-x", "--use_weights", action="store_true", help="optional: use weighted quartets max-cut.")
+    # parser.add_argument("-n", "--name", type=str, metavar="str", help="name prefix for output files.")
+    # parser.add_argument("-w", "--workdir", type=Path, metavar="path", default=".", help="working directory path.")
+    # # parser.add_argument("-i", "--imap", type=Path, metavar="path", help="optional: map of sample names to species.")
+    # parser.add_argument("-q", "--nquartets", type=float, metavar="int", default=0, help="optional: number of quartets to sample.")
+    # parser.add_argument("-r", "--random-seed", type=int, metavar="int", help="optional: random number generator seed.")
+    # parser.add_argument("-s", "--subsample-snps", action="store_true", help="optional: sample unlinked SNPs (1 per locus).")
+    # parser.add_argument("-x", "--use_weights", action="store_true", help="optional: use weighted quartets max-cut.")
     # parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "EXCEPTION"], metavar="level", default="INFO", help="stderr logging level (DEBUG, INFO, WARNING, ERROR; default=INFO)")
     return parser
+
+
+def run_trees(args):
+    """..."""
+    try:
+        proj = Project.load_json(args.json)
+        convert_tree(proj, args.tree, ...)
+    except Exception:
+        logger.exception("Error during tree conversion")
+
+
+def main():
+    parser = get_parser_trees()
+    args = parser.parse_args()
+    run_trees(args)
+
+
+if __name__ == "__main__":
+    main()
