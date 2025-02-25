@@ -25,5 +25,5 @@ __author__ = "Deren Eaton"
 
 
 # from tetrad.core import Tetrad
-# from tetrad.logger_setup import set_log_level
-# set_log_level("INFO")
+from tetrad.src.logger_setup import set_log_level
+set_log_level("INFO")
