@@ -49,7 +49,7 @@ setup(
         "toytree>=3.0",
         "ipyparallel>=7.0",
     ],
-    # entry_points={'console_scripts': ['tetrad = tetrad.__main__:main']},
+    entry_points={'console_scripts': ['tetrad = tetrad.src.cli:main']},
     data_files=[('bin', glob.glob("./bin/*"))],
     license='GPLv3',
     classifiers=[
