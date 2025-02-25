@@ -7,7 +7,7 @@ This is called by tetrad init to create the HDF5 database.
 TODO
 ----
 - allow imap sampling here ...
-- 
+-
 """
 
 from pathlib import Path
@@ -26,7 +26,7 @@ from tetrad.jit.resolve_ambigs import jit_resolve_ambigs
 
 def deprecated_get_names_from_database(data: Path, imap: dict[str, list[str]]) -> dict[int, str]:
     """Return dict of {index: name} in order from HDF5, subset by imap.
-    
+
     The imap will subselect names to be includd in the analysis, but
     does not relabel the names. Keeps all names in the values.
     Example IMAP: {'a': ['a_1', 'a_2'], 'b': ['b_1', 'b_2'], ...}
@@ -56,7 +56,7 @@ def deprecated_get_names_from_database(data: Path, imap: dict[str, list[str]]) -
 
 def get_names_from_database(data: Path) -> dict[int, str]:
     """Return dict of {index: name} in order from HDF5, subset by imap.
-    
+
     The imap will subselect names to be includd in the analysis, but
     does not relabel the names. Keeps all names in the values.
     Example IMAP: {'a': ['a_1', 'a_2'], 'b': ['b_1', 'b_2'], ...}
@@ -74,7 +74,7 @@ def get_names_from_database(data: Path) -> dict[int, str]:
 
 def get_nsnps_from_database(data: Path) -> int:
     """Return the number of SNPs in the HDF5 database."""
-    with h5py.File(data, 'r') as io5:    
+    with h5py.File(data, 'r') as io5:
         return io5['snps'].shape[1]
 
 
@@ -98,11 +98,13 @@ def get_nquartets(nsamples: int, nquartets: int) -> tuple[int, int]:
     # warn user if they entered a low value for nquartets
     if nquartets < rough:
         logger.warning(f"nquartets is low ({nquartets}/{total}), consider raising to {rough} or higher")
+        return nquartets, total
     elif nquartets > total:
-        logger.info(f"quartet sampler [full]: {nquartets}/{total}")
+        logger.info(f"quartet sampler [full]: {total}/{total}")
+        return total, total
     else:
         logger.info(f"quartet sampler [random]: {nquartets}/{total}")
-    return nquartets, total
+        return nquartets, total
 
 
 def init_database(data: Path, out: Path, nsnps: int, nsamples: int, nquartets: int, rng: int) -> None:
@@ -181,10 +183,10 @@ def write_database(project: "Project") -> "Project":
     nsamples = len(samples)
     nsnps = get_nsnps_from_database(project.data)
     nqrts, nqrts_total = get_nquartets(nsamples, project.nquartets)
-    # logger.info(nsamples)    
+    # logger.info(nsamples)
     # logger.info(nsnps)
     # logger.info(nqrts)
-    # logger.info(project.random_seed)    
+    # logger.info(project.random_seed)
     init_database(project.data, project.database_file, nsnps, nsamples, nqrts, project.random_seed)
     project.nqrts = nqrts
     project.nqrts_total = nqrts_total
@@ -199,12 +201,15 @@ def imap_tsv_to_dict(imap: Path) -> dict[str, list[str]]:
     return imap.groupby(0)[1].apply(list).to_dict()
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
 
 
-    DATA = Path("/home/deren/Documents/tools/tetrad/lib123-Ahypo-ref.snps.hdf5")
-    IMAP = Path("../../imap.tsv")
-    print(imap_tsv_to_dict(IMAP))
+    # DATA = Path("/home/deren/Documents/tools/tetrad/lib123-Ahypo-ref.snps.hdf5")
+    DATA = Path("/home/deren/Documents/tools/tetrad/new_all_delphinium_123_3x.snps.hdf5")
+    IMAP = Path("") #"/home/deren/Documents/tools/tetrad/sample-to-species-map2.tsv")
+    # ../../imap.tsv")
+    # print(imap_tsv_to_dict(IMAP))
+
     # DATA = Path("/tmp/small.snps.hdf5")
     OUT = Path("/tmp/small.database.hdf5")
 
@@ -217,12 +222,14 @@ if __name__ == "__main__":
     else:
         logger.info(f"{DATA} exists: {DATA.exists()}")
 
-    nsamples = get_names_from_database(DATA)
+    # get dict mapping {sidx: name, ...}
+    samples = get_names_from_database(DATA)
+    nsamples = len(samples)
     nsnps = get_nsnps_from_database(DATA)
     nqrts, nqtotal = get_nquartets(nsamples, 0)
 
     init_database(DATA, OUT, nsnps, nsamples, nqrts, 123)
-
+    # raise SystemExit(0)
     with h5py.File(OUT, 'r') as io5:
         for name in ["tmpmap", "tmparr", "spans", "seqarr"]:
             db = io5[name]
