@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from ipyparallel import Client
-from tetrad.cluster import Cluster
+from tetrad.src.cluster import Cluster
 from tetrad.src.schema import Project, RNGStateModel
 from tetrad.src.combinations import iter_chunks_random, iter_chunks_full
 from tetrad.src.resolve_quartets import infer_resolved_quartets
