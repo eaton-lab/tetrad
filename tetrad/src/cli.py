@@ -22,6 +22,7 @@ from tetrad.src.logger_setup import set_log_level
 from tetrad.src.cli_init import get_parser_init, run_init
 from tetrad.src.cli_run import get_parser_run, run_run_inference
 from tetrad.src.cli_info import get_parser_info, run_info
+from tetrad.src.cli_trees import get_parser_trees, run_trees
 
 VERSION = metadata.version("tetrad")
 
@@ -58,7 +59,8 @@ def setup_parsers() -> ArgumentParser:
     )
     get_parser_init(subparsers)
     get_parser_run(subparsers)
-    get_parser_info(subparsers)    
+    get_parser_info(subparsers)
+    get_parser_trees(subparsers)
     return parser
 
 
@@ -86,6 +88,10 @@ def main(cmd: str = None) -> int:
     if args.subcommand == "info":
         run_info(args)
         return 0
+
+    if args.subcommand == "trees":
+        run_trees(args)
+        return 0        
 
 
 if __name__ == "__main__":
