@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""...
+"""CLI tool to print info about a current project JSON file.
 
 """
 

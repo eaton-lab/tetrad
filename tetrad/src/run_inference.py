@@ -290,11 +290,12 @@ def write_qmc_format(qrts_file: Path, qmc_in_file: Path, weights: int = 0):
         while 1:
             chunk = "\n".join(islice(qiter, chunk_size))
             if chunk:
-                out.write(chunk)
+                out.write(chunk + "\n")
             else:
                 break
 
-    # randomize input order (shuf cannot take a seed?)
+    # randomize input order (shuf cannot take a seed?) Maybe just
+    # use python instead then...?
     fpath = str(qmc_in_file)
     cmd = ["shuf", "-o", fpath, fpath]
     run(cmd, check=True)  # subprocess

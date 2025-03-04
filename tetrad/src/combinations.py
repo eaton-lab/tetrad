@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-"""Split combinatorial quartet jobs into generator instructions."""
+"""Split combinatorial quartet jobs into generator instructions.
+
+"""
 
 
 from itertools import combinations, islice
