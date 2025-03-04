@@ -6,6 +6,7 @@
 
 import textwrap
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from importlib import metadata
 from loguru import logger
@@ -63,6 +64,7 @@ def get_parser_trees(parser: ArgumentParser | None = None, data: Path = None) ->
     # parser.add_argument("--map", action="store_true", help="...")
     parser.add_argument("--weights", metavar="int", type=int, default=1, help="weighting strategy for quartet max-cut.")
     parser.add_argument("--idxs", metavar="int", type=int, nargs="*", default=None, help="subselect a quartet result table (default=None=all).")
+    parser.add_argument("-c", "--cores", metavar="int", type=int, default=4, help="n cores available for parallel processing.")
     # parser.add_argument("-n", "--name", type=str, metavar="str", help="name prefix for output files.")
     # parser.add_argument("-w", "--workdir", type=Path, metavar="path", default=".", help="working directory path.")
     # parser.add_argument("-r", "--random-seed", type=int, metavar="int", help="optional: random number generator seed.")
@@ -81,14 +83,23 @@ def run_trees(args):
         nwks = []
         if args.idxs is None:
             args.idxs = range(proj.bootstrap_idx)
-        for idx in args.idxs:
-            nwk = infer_supertree(proj, idx=idx, weights=args.weights)
-            nwks.append(nwk)
+
+        # ...
+        with ProcessPoolExecutor(max_workers=args.cores) as pool:
+            for idx in args.idxs:
+                kwargs = dict(proj=proj, idx=idx, weights=args.weights, proc=idx)
+                rasync = pool.submit(infer_supertree, **kwargs)
+                # nwk = infer_supertree(proj, idx=idx, weights=args.weights)
+                nwks.append(rasync)
+        nwks = [i.result() for i in nwks]
 
         # infer consensus tree
-        mtre = mtree(nwks)
-        ctre = mtre.get_consensus_tree()
-        print(ctre.write(None))
+        if args.consensus:
+            mtre = mtree(nwks)
+            ctre = mtre.get_consensus_tree()
+            print(ctre.write(None))
+        else:
+            print("\n".join(nwks))
 
         # [other things like mapping bootstraps to mj or orig]
         # ...

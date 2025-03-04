@@ -279,7 +279,7 @@ def iter_qmc_formatted(qrts_file: Path, weights: int):
             yield "{},{}|{},{}:{:.5f}".format(*qrts, weight)
 
 
-def write_qmc_format(qrts_file: Path, qmc_in_file: Path, weights: int = 0):
+def write_qmc_format(qrts_file: Path, qmc_in_file: Path, weights: int = 0) -> None:
     """Write resolved weighted quartets in random order to a tmp file.
     """
     chunk_size = 50_000
@@ -301,17 +301,24 @@ def write_qmc_format(qrts_file: Path, qmc_in_file: Path, weights: int = 0):
     run(cmd, check=True)  # subprocess
 
 
-def infer_supertree(proj: Project, idx: int, weights: int) -> str:
+def infer_supertree(proj: Project, idx: int, weights: int, proc: int = 0) -> str:
     """Return a quartet supertree.
     """
     # get the quartets file for the selected rep
     qrts_file = proj.workdir / f"{proj.name}.quartets_{idx}.tsv"
+    # set name on tmp qmc files
+    tmp_qmc_in_file = proj.qmc_in_file.parent / f"tmp_in{proc}"
+    tmp_qmc_out_file = proj.qmc_out_file.parent / f"tmp_out{proc}"
+    logger.warning(tmp_qmc_in_file)
     # calculate weights and format for QMC
-    write_qmc_format(qrts_file, proj.qmc_in_file, weights)
+    write_qmc_format(qrts_file, tmp_qmc_in_file, weights)
     # run QMC to get supertree
-    run_qmc(proj.qmc_in_file, proj.qmc_out_file, bool(weights))
+    run_qmc(tmp_qmc_in_file, tmp_qmc_out_file, bool(weights))
     # relabel tree w/ tip names
     nwk = relabel_tree(proj.qmc_out_file, proj.samples)
+    # cleanup
+    tmp_qmc_in_file.unlink()
+    tmp_qmc_out_file.unlink()    
     return nwk
 
 
