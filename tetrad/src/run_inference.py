@@ -16,6 +16,7 @@ The results file is a tab-delimited format with columns:
 6. SVD score for resolution 2 (14|23)
 7. quartet resolution index (0, 1, or 2)
 8. nsnps 
+
 """
 
 import sys
@@ -250,7 +251,7 @@ def distributor(database_file: Path, qrts_file: Path, nsamples: int, qiter: Gene
     return qrts_file
 
 
-def iter_qmc_formatted(qrts_file: Path, weights: int):
+def iter_qmc_formatted(qrts_file: Path, weights: int, min_snps: int = 0, min_ratio: float = 1.0):
     """Generator to yield resolved quartets in wQMC format.
     """
     with open(qrts_file, 'r') as datain:
@@ -264,28 +265,48 @@ def iter_qmc_formatted(qrts_file: Path, weights: int):
             else:
                 qrts = values[:4]
             scores = np.array(values[4:7], dtype=np.float64)
+            nsnps = int(values[8])
+
+            # filter by min_snps
+            if nsnps < min_snps:
+                logger.debug(f"filtered by min snps {nsnps}")
+                continue
 
             # calculate weights
             if not weights:
                 weight = 1.0
-            elif weights == 1:
-                weight = np.mean(sorted(scores)[1:])
-            elif weights == 2:
-                weight = 1. - scores.min() / scores.sum()
             else:
-                raise ValueError(f"no weight strategy {weights}")
+                scores = np.array(sorted(scores))
+                smean = scores[1:].mean()
+                smin = scores.min()
+                ratio = 1. if not smin else smean / smin
+
+                # select weights to return
+                if weights == 1:
+                    weight = smean
+                elif weights == 2:            
+                    weight = ratio
+                elif weights == 3:
+                    weight = 1. - smin / scores.sum()
+                else:
+                    raise ValueError(f"no weight strategy {weights}")
+
+            # filter by min ratio
+            if ratio < min_ratio:
+                logger.debug(f"filtered by min ratio {ratio}")
+                continue
 
             # return formatted for QMC
             yield "{},{}|{},{}:{:.5f}".format(*qrts, weight)
 
 
-def write_qmc_format(qrts_file: Path, qmc_in_file: Path, weights: int = 0) -> None:
+def write_qmc_format(qrts_file: Path, qmc_in_file: Path, weights: int = 0, min_snps: int=0, min_ratio: float=1.0) -> None:
     """Write resolved weighted quartets in random order to a tmp file.
     """
     chunk_size = 50_000
 
     # write weighted quartets to 
-    qiter = iter_qmc_formatted(qrts_file, weights)
+    qiter = iter_qmc_formatted(qrts_file, weights, min_snps, min_ratio)
     with open(qmc_in_file, 'w') as out:
         while 1:
             chunk = "\n".join(islice(qiter, chunk_size))
@@ -301,24 +322,33 @@ def write_qmc_format(qrts_file: Path, qmc_in_file: Path, weights: int = 0) -> No
     run(cmd, check=True)  # subprocess
 
 
-def infer_supertree(proj: Project, idx: int, weights: int, proc: int = 0) -> str:
+def infer_supertree(proj: Project, idx: int, weights: int, min_snps: int=0, min_ratio: float=1.0) -> str:
     """Return a quartet supertree.
     """
     # get the quartets file for the selected rep
     qrts_file = proj.workdir / f"{proj.name}.quartets_{idx}.tsv"
+
     # set name on tmp qmc files
-    tmp_qmc_in_file = proj.qmc_in_file.parent / f"tmp_in{proc}"
-    tmp_qmc_out_file = proj.qmc_out_file.parent / f"tmp_out{proc}"
-    logger.warning(tmp_qmc_in_file)
+    if idx:
+        tmp_qmc_in_file = proj.qmc_in_file.parent / f"tmp_in{idx}"
+        tmp_qmc_out_file = proj.qmc_out_file.parent / f"tmp_out{idx}"
+    else:
+        tmp_qmc_in_file = proj.qmc_in_file
+        tmp_qmc_out_file = proj.qmc_out_file
+
     # calculate weights and format for QMC
-    write_qmc_format(qrts_file, tmp_qmc_in_file, weights)
+    write_qmc_format(qrts_file, tmp_qmc_in_file, weights, min_snps, min_ratio)
+
     # run QMC to get supertree
     run_qmc(tmp_qmc_in_file, tmp_qmc_out_file, bool(weights))
+
     # relabel tree w/ tip names
     nwk = relabel_tree(proj.qmc_out_file, proj.samples)
+
     # cleanup
-    tmp_qmc_in_file.unlink()
-    tmp_qmc_out_file.unlink()    
+    if idx:
+        tmp_qmc_in_file.unlink()
+        tmp_qmc_out_file.unlink()    
     return nwk
 
 
@@ -348,7 +378,7 @@ def run_inference(proj: Project, ncores: int, nboots: int) -> None:
             else:
                 qiter = iter_chunks_random(proj.nsamples, proj.nqrts, chunksize, rng)
 
-            # bootstrap resample
+            # bootstrap resample columns in the SNP alignment
             if proj.bootstrap_idx:
                 resample_tmp_database(proj.database_file, rng)
 

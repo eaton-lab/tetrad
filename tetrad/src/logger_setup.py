@@ -52,7 +52,7 @@ def set_log_level(log_level="INFO"):
         except ValueError:
             pass
     idx = logger.add(
-        sink=sys.stdout,
+        sink=sys.stderr,
         level=log_level,
         colorize=colorize(),
         format=LOGFORMAT,

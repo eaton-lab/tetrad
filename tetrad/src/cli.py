@@ -22,7 +22,9 @@ from tetrad.src.logger_setup import set_log_level
 from tetrad.src.cli_init import get_parser_init, run_init
 from tetrad.src.cli_run import get_parser_run, run_run_inference
 from tetrad.src.cli_info import get_parser_info, run_info
-from tetrad.src.cli_trees import get_parser_trees, run_trees
+from tetrad.src.cli_supertree import get_parser_supertree, run_supertree
+from tetrad.src.cli_consensus import get_parser_consensus, run_consensus
+from tetrad.src.cli_concordance import get_parser_concordance, run_concordance
 
 VERSION = metadata.version("tetrad")
 
@@ -60,7 +62,9 @@ def setup_parsers() -> ArgumentParser:
     get_parser_init(subparsers)
     get_parser_run(subparsers)
     get_parser_info(subparsers)
-    get_parser_trees(subparsers)
+    get_parser_supertree(subparsers)
+    get_parser_consensus(subparsers)
+    get_parser_concordance(subparsers)
     return parser
 
 
@@ -89,8 +93,16 @@ def main(cmd: str = None) -> int:
         run_info(args)
         return 0
 
-    if args.subcommand == "trees":
-        run_trees(args)
+    if args.subcommand == "supertree":
+        run_supertree(args)
+        return 0        
+
+    if args.subcommand == "consensus":
+        run_consensus(args)
+        return 0        
+
+    if args.subcommand == "concordance":
+        run_concordance(args)
         return 0        
 
 
