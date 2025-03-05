@@ -275,6 +275,7 @@ def iter_qmc_formatted(qrts_file: Path, weights: int, min_snps: int = 0, min_rat
             # calculate weights
             if not weights:
                 weight = 1.0
+                ratio = 1.0
             else:
                 scores = np.array(sorted(scores))
                 smean = scores[1:].mean()

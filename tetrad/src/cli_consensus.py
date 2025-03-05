@@ -30,10 +30,13 @@ KWARGS = dict(
     formatter_class=make_wide(RawDescriptionHelpFormatter),
     description=textwrap.dedent("""
         -------------------------------------------------------------------
-        | tetrad consensus
+        | tetrad supertree consensus
         -------------------------------------------------------------------
-        | Infer a majority-rule consensus tree. This will analyze the
-        | resolved quartet TSV files produced by the `run` method. 
+        | Re-infer supertrees for each replicate quartet dataset under
+        | the given weighting and filtering options, and return a 
+        | majority-rule consensus tree with edge supports. You can 
+        | optionally add concordance statistics to edges, or do that
+        | in a separate command call to `tetrad concordance`.
         -------------------------------------------------------------------
     """),
     epilog=textwrap.dedent(r"""
@@ -70,8 +73,8 @@ def get_parser_consensus(parser: ArgumentParser | None = None, data: Path = None
 
     # advanced plotting
     parser.add_argument("-w", "--weights", metavar="int", type=int, default=1, help="weighting strategy for quartet max-cut.")
-    parser.add_argument("-s", "--min-snps", metavar="int", type=int, default=0, help="min SNPs to include quartet in supertree inference.")
-    parser.add_argument("-r", "--min-ratio", metavar="float", type=float, default=1.0, help="min ratio (best-tree-score / mean(alternatives)) for inclusion in analysis.")
+    parser.add_argument("-s", "--min-snps", metavar="int", type=int, default=0, help="min SNPs to include quartet in supertree inference (default=0)")
+    parser.add_argument("-r", "--min-ratio", metavar="float", type=float, default=1.0, help="min ratio (best-tree-score / mean(alternatives)) for inclusion in analysis (default=1.0)")
     parser.add_argument("-t", "--tree", metavar="path", type=Path, default=None, help="nwk tree file on which to map supports instead of inferring consensus.")
     parser.add_argument("-o", "--outgroup", metavar="str", type=str, default=None, help="outgroup to root tree (e.g., 'taxonA' '~outg[0-9].*').")
     parser.add_argument("-c", "--cores", metavar="int", type=int, default=4, help="n cores available for parallel processing.")

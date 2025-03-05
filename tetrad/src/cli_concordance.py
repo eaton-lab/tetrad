@@ -27,9 +27,10 @@ KWARGS = dict(
         | tetrad concordance
         -------------------------------------------------------------------
         | Measure quartet concordance branch statistics to distinguish
-        | support from conflict (e.g., Pease et al. 2018). This will 
-        | analyze the resolved quartet TSV files produced by the `run` 
-        | method. 
+        | support from conflict (e.g., Pease et al. 2018). This will analyze
+        | the resolved quartet TSV files produced by `tetrad run`. Note
+        | that -w can be used to output weights on edges for inspection,
+        | but does not affect the computed quartet concordance stats.
         -------------------------------------------------------------------
     """),
     epilog=textwrap.dedent(r"""
@@ -64,9 +65,9 @@ def get_parser_concordance(parser: ArgumentParser | None = None, data: Path = No
     # advanced plotting
     parser.add_argument("-t", "--tree", metavar="path", type=Path, default=None, help="nwk tree file on which to map supports instead of inferring consensus.")
     parser.add_argument("-w", "--weights", metavar="int", type=int, default=1, help="weighting strategy for quartet max-cut.")
-    parser.add_argument("-s", "--min-snps", metavar="int", type=int, default=0, help="min SNPs to include quartet in supertree inference.")
-    parser.add_argument("-r", "--min-ratio", metavar="float", type=float, default=1.0, help="min ratio (best-tree-score / mean(alternatives)) for inclusion in analysis.")
-    parser.add_argument("-o", "--outgroup", metavar="str", type=str, default=None, help="outgroup to root tree (e.g., 'taxonA' '~outg[0-9].*').")
+    parser.add_argument("-s", "--min-snps", metavar="int", type=int, default=0, help="min SNPs to include quartet in supertree inference (default=0)")
+    parser.add_argument("-r", "--min-ratio", metavar="float", type=float, default=1.0, help="min ratio (best-tree-score / mean(alternatives)) for inclusion in analysis (default=1.0)")
+    parser.add_argument("-o", "--outgroup", metavar="str", type=str, default=None, help="outgroup to root tree (e.g., 'taxonA', '~outg[0-9].*').")
     parser.add_argument("-c", "--cores", metavar="int", type=int, default=4, help="n cores available for parallel processing.")
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "EXCEPTION"], metavar="level", default="INFO", help="stderr logging level (DEBUG, INFO, WARNING, ERROR; default=INFO)")
     # parser.add_argument("-r", "--random-seed", type=int, metavar="int", help="optional: random number generator seed.")
