@@ -254,6 +254,10 @@ def distributor(database_file: Path, qrts_file: Path, nsamples: int, qiter: Gene
 def iter_qmc_formatted(qrts_file: Path, weights: int, min_snps: int = 0, min_ratio: float = 1.0):
     """Generator to yield resolved quartets in wQMC format.
     """
+    # abs min allowed SNPs is 1
+    min_snps = max(1, min_snps)
+    
+    # iterate over quartets
     with open(qrts_file, 'r') as datain:
         for line in datain:
             values = line.split("\t")

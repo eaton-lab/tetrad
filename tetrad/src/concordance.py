@@ -243,17 +243,6 @@ def set_quartet_stats(trees: list[toytree.ToyTree]) -> toytree.ToyTree:
             for nodex, node in zip(tree, t):
                 for feat in QSTATS[4:]:
                     setattr(nodex, feat, getattr(nodex, feat) + getattr(node, feat))
-                # nodex.nsnps += node.nsnps
-                # nodex.weights += node.weights
-                # nodex.scores += node.scores
-                # # sum ints
-                # nodex.nqrts += node.nqrts
-                # nodex.conc += node.conc
-                # nodex.disc1 += node.disc1
-                # nodex.disc2 += node.disc2
-                # nodex.nu += node.nu
-                # nodex.QFc += node.QFc
-                # nodex.QFd += node.QFd        
 
     # overwrite as means
     tree.set_node_data("nsnps", {i: np.mean(i.nsnps) for i in tree[tree.ntips:-1]}, default=np.nan, inplace=True)
